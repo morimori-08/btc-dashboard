@@ -32,6 +32,20 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_timestamp
 --     .lt('timestamp', new Date(Date.now() - 30*24*3600*1000).toISOString())
 -- ============================================================
 
+-- ============================================================
+-- Permanent hourly archive (NO deletion ever)
+-- 1 record per hour = 24/day = ~120KB/day (after JSONB compression)
+-- 500MB free tier → approx 7-8 years of hourly history
+-- ============================================================
+CREATE TABLE IF NOT EXISTS snapshots_hourly (
+    id        BIGSERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    data      JSONB NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_hourly_timestamp
+    ON snapshots_hourly (timestamp DESC);
+
 -- Row Level Security (optional — enable if you want table-level auth)
 -- ALTER TABLE snapshots ENABLE ROW LEVEL SECURITY;
 -- CREATE POLICY "service_role_only" ON snapshots
