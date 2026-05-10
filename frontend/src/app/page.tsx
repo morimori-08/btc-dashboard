@@ -928,59 +928,73 @@ function calcSMA(closes: number[], period: number): (number | null)[] {
   )
 }
 
-function CandleChart({ candles, interval }: { candles: Candle[]; interval: string }) {
+// DISPLAY_COUNT: 表示する足数（SMA200ウォームアップ後の分）
+const DISPLAY_COUNT: Record<string, number> = { '1h': 120, '4h': 100, '1d': 150, '1w': 80 }
+
+function CandleChart({ candles, tf }: { candles: Candle[]; tf: string }) {
   if (!candles.length) return <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>データ取得中...</div>
+
+  // SMAはfetch済みの全足で計算（ウォームアップ込み）、表示は最後のdisplayCount本のみ
+  const allCloses = candles.map(c => c.c)
+  const allSma20  = calcSMA(allCloses, 20)
+  const allSma75  = calcSMA(allCloses, 75)
+  const allSma200 = calcSMA(allCloses, 200)
+
+  const disp = DISPLAY_COUNT[tf] ?? 120
+  const start = Math.max(0, candles.length - disp)
+  const vis     = candles.slice(start)
+  const vSma20  = allSma20.slice(start)
+  const vSma75  = allSma75.slice(start)
+  const vSma200 = allSma200.slice(start)
 
   const W = 900, H = 320, PAD_L = 72, PAD_R = 16, PAD_T = 16, PAD_B = 32
   const cw = W - PAD_L - PAD_R
   const ch = H - PAD_T - PAD_B
-  const n  = candles.length
+  const n  = vis.length
 
-  const highs  = candles.map(c => c.h)
-  const lows   = candles.map(c => c.l)
-  const closes = candles.map(c => c.c)
-  const priceHi = Math.max(...highs) * 1.001
-  const priceLo = Math.min(...lows)  * 0.999
+  const highs = vis.map(c => c.h)
+  const lows  = vis.map(c => c.l)
+  // price range includes SMA lines so axis stays tight
+  const smaVals = [...vSma20, ...vSma75, ...vSma200].filter(v => v != null) as number[]
+  const priceHi = Math.max(...highs, ...smaVals) * 1.001
+  const priceLo = Math.min(...lows,  ...smaVals) * 0.999
   const priceRange = priceHi - priceLo
-
-  const sma20  = calcSMA(closes, 20)
-  const sma75  = calcSMA(closes, 75)
-  const sma200 = calcSMA(closes, 200)
 
   const px = (i: number) => PAD_L + (i + 0.5) * (cw / n)
   const py = (v: number) => PAD_T + ch - (v - priceLo) / priceRange * ch
-
   const barW = Math.max(1, cw / n * 0.7)
 
-  // price labels
   const nLabels = 5
   const priceLabels = Array.from({ length: nLabels }, (_, i) => priceLo + (priceRange * i) / (nLabels - 1))
 
-  // SMA line path
-  const linePoints = (sma: (number | null)[]) =>
-    sma.reduce((path, v, i) => {
-      if (v == null) return path
-      const x = px(i), y = py(v)
-      const prev = sma.slice(0, i).findIndex(s => s != null) === i - 1 || path === '' ? 'M' : (sma[i - 1] != null ? 'L' : 'M')
-      return `${path}${prev}${x.toFixed(1)} ${y.toFixed(1)} `
-    }, '')
+  // Build SVG path for SMA line (guaranteed continuous since start is always non-null)
+  const linePoints = (sma: (number | null)[]) => {
+    let d = ''
+    for (let i = 0; i < sma.length; i++) {
+      const v = sma[i]
+      if (v == null) continue
+      const x = px(i).toFixed(1), y = py(v).toFixed(1)
+      d += (d === '' || sma[i - 1] == null) ? `M${x} ${y}` : `L${x} ${y}`
+    }
+    return d
+  }
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
-      {/* grid */}
+      {/* grid lines */}
       {priceLabels.map((p, i) => {
         const y = py(p)
         return (
           <g key={i}>
             <line x1={PAD_L} x2={W - PAD_R} y1={y} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
             <text x={PAD_L - 6} y={y + 4} textAnchor="end" fill="#666" fontSize="10" fontFamily="monospace">
-              {p >= 1000 ? `${(p / 1000).toFixed(0)}K` : p.toFixed(0)}
+              {p >= 1000 ? `${(p / 1000).toFixed(1)}K` : p.toFixed(0)}
             </text>
           </g>
         )
       })}
       {/* candles */}
-      {candles.map((c, i) => {
+      {vis.map((c, i) => {
         const isUp = c.c >= c.o
         const color = isUp ? '#00FF88' : '#FF3366'
         const x = px(i)
@@ -990,16 +1004,15 @@ function CandleChart({ candles, interval }: { candles: Candle[]; interval: strin
         const bodyH   = Math.max(1, Math.abs(yC - yO))
         return (
           <g key={i}>
-            <line x1={x} x2={x} y1={yH} y2={yL} stroke={color} strokeWidth="1" opacity="0.7" />
-            <rect x={x - barW / 2} y={bodyTop} width={barW} height={bodyH}
-              fill={isUp ? color : color} opacity={isUp ? 0.85 : 0.85} rx="0.5" />
+            <line x1={x} x2={x} y1={yH} y2={yL} stroke={color} strokeWidth="1" opacity="0.6" />
+            <rect x={x - barW / 2} y={bodyTop} width={barW} height={bodyH} fill={color} opacity="0.85" rx="0.5" />
           </g>
         )
       })}
-      {/* SMA lines */}
-      <path d={linePoints(sma20)}  stroke="#00D4FF" strokeWidth="1.5" fill="none" opacity="0.9" />
-      <path d={linePoints(sma75)}  stroke="#F7931A" strokeWidth="1.5" fill="none" opacity="0.9" />
-      <path d={linePoints(sma200)} stroke="#FF3366" strokeWidth="1.5" fill="none" opacity="0.9" />
+      {/* SMA lines — drawn on top of candles */}
+      <path d={linePoints(vSma200)} stroke="#FF3366" strokeWidth="1.8" fill="none" opacity="0.95" />
+      <path d={linePoints(vSma75)}  stroke="#F7931A" strokeWidth="1.8" fill="none" opacity="0.95" />
+      <path d={linePoints(vSma20)}  stroke="#00D4FF" strokeWidth="1.8" fill="none" opacity="0.95" />
       {/* legend */}
       {[['SMA20','#00D4FF'],['SMA75','#F7931A'],['SMA200','#FF3366']].map(([label, color], i) => (
         <g key={label} transform={`translate(${PAD_L + i * 80},${H - 8})`}>
@@ -1024,7 +1037,13 @@ function TabTech({ d }: { d: any }) {
   const [chartLoading, setChartLoading] = useState(false)
 
   const intervalMap: Record<string, string> = { '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1w' }
-  const limitMap:    Record<string, number>  = { '1h': 120, '4h': 120, '1d': 200, '1w': 104 }
+  // SMA200ウォームアップ(200本) + 表示分(DISPLAY_COUNT) を合算してfetch
+  const limitMap: Record<string, number> = {
+    '1h': 200 + (DISPLAY_COUNT['1h'] ?? 120),   // 320
+    '4h': 200 + (DISPLAY_COUNT['4h'] ?? 100),   // 300
+    '1d': 200 + (DISPLAY_COUNT['1d'] ?? 150),   // 350
+    '1w': 200 + (DISPLAY_COUNT['1w'] ?? 80),    // 280
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -1104,7 +1123,7 @@ function TabTech({ d }: { d: any }) {
           ))}
           {chartLoading && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', alignSelf: 'center' }}>読み込み中...</span>}
         </div>
-        <CandleChart candles={candles} interval={chartTF} />
+        <CandleChart candles={candles} tf={chartTF} />
       </GlassCard>
 
       {/* SMAテーブル */}
