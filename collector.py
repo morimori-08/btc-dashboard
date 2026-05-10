@@ -532,13 +532,23 @@ def _build_oi_total(raw: dict) -> dict:
 # ================================================================
 
 async def _fetch_btc_price(session) -> Optional[float]:
-    d = await _get(session, "https://api.binance.com/api/v3/ticker/price",
-                   params={"symbol": "BTCUSDT"})
-    if d:
+    # Binance Spot → Binance Futures → CoinGecko の順でフォールバック
+    sources = [
+        ("https://api.binance.com/api/v3/ticker/price", {"symbol": "BTCUSDT"}, "price"),
+        ("https://fapi.binance.com/fapi/v1/ticker/price", {"symbol": "BTCUSDT"}, "price"),
+        ("https://api.coinbase.com/v2/prices/BTC-USD/spot", None, None),
+    ]
+    for url, params, key in sources:
+        d = await _get(session, url, params=params)
+        if not d:
+            continue
         try:
-            return float(d["price"])
+            if key:
+                return float(d[key])
+            # Coinbase
+            return float(d["data"]["amount"])
         except Exception:
-            pass
+            continue
     return None
 
 
