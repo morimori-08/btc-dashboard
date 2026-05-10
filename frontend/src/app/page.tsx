@@ -125,6 +125,219 @@ function Badge({ label, type = 'muted' }: { label: string; type?: 'green' | 'red
 }
 
 // ============================================================
+// AI分析エンジン（ルールベース）
+// ============================================================
+
+type Signal = { label: string; value: string; verdict: 'bull' | 'bear' | 'neutral'; weight: number; reason: string }
+
+function buildSignals(d: any): Signal[] {
+  const signals: Signal[] = []
+  const fr   = d.fr_aggregate  || {}
+  const liq  = d.liquidations  || {}
+  const vol  = d.vol           || {}
+  const etf  = d.etf_flow      || {}
+  const ef   = d.exchange_flow || {}
+  const tech = d.technical     || {}
+  const lh   = d.liq_heatmap   || {}
+  const mac  = d.macro         || {}
+  const kl   = lh.key_levels   || {}
+  const price = d.btc_price    || 0
+
+  // ── FR (BTC) ──────────────────────────────────────────────
+  const frBtc = fr.BTC?.avg
+  if (frBtc != null) {
+    if (frBtc > 0.05)
+      signals.push({ label: 'BTC FR', value: `+${(frBtc * 100).toFixed(3)}%`, verdict: 'bear', weight: 3,
+        reason: '過熱ゾーン。ロングポジションが積み過ぎ → 強制決済・急落リスク高' })
+    else if (frBtc > 0.02)
+      signals.push({ label: 'BTC FR', value: `+${(frBtc * 100).toFixed(3)}%`, verdict: 'neutral', weight: 1,
+        reason: '強気バイアスあり。上昇継続余地はあるが過熱に近づいている' })
+    else if (frBtc < -0.01)
+      signals.push({ label: 'BTC FR', value: `${(frBtc * 100).toFixed(3)}%`, verdict: 'bull', weight: 3,
+        reason: 'ショート優位のFR → ショートスクイーズによる急騰トリガーになりやすい' })
+    else
+      signals.push({ label: 'BTC FR', value: `${(frBtc * 100).toFixed(3)}%`, verdict: 'neutral', weight: 1,
+        reason: 'FRは中立。特定方向へのバイアスなし' })
+  }
+
+  // ── テクニカル (1H) ────────────────────────────────────────
+  const h1 = tech['1h'] || {}
+  const d1 = tech['1d'] || {}
+  if (h1.vs_sma200) {
+    if (h1.vs_sma200 === 'above' && d1.vs_sma200 === 'above')
+      signals.push({ label: 'SMA200位置', value: '価格 > SMA200', verdict: 'bull', weight: 2,
+        reason: '1H・日足ともにSMA200上方。長期上昇トレンド維持' })
+    else if (h1.vs_sma200 === 'below' && d1.vs_sma200 === 'below')
+      signals.push({ label: 'SMA200位置', value: '価格 < SMA200', verdict: 'bear', weight: 2,
+        reason: '1H・日足ともにSMA200下方。長期下降トレンド継続中' })
+  }
+  if (h1.rsi14 != null) {
+    if (h1.rsi14 > 72)
+      signals.push({ label: 'RSI(1H)', value: h1.rsi14.toFixed(1), verdict: 'bear', weight: 2,
+        reason: `RSI過買い(${h1.rsi14.toFixed(0)})。短期的な反落・調整が起きやすい水準` })
+    else if (h1.rsi14 < 28)
+      signals.push({ label: 'RSI(1H)', value: h1.rsi14.toFixed(1), verdict: 'bull', weight: 2,
+        reason: `RSI過売り(${h1.rsi14.toFixed(0)})。反発・ショートカバーが起きやすい水準` })
+  }
+
+  // ── 清算MAP ────────────────────────────────────────────────
+  if (price > 0) {
+    const shortAbove = kl.next_short_liq
+    const longBelow  = kl.next_long_liq
+    if (shortAbove && (shortAbove - price) < price * 0.03)
+      signals.push({ label: 'ショート清算帯', value: `$${shortAbove.toLocaleString()}`, verdict: 'bull', weight: 2,
+        reason: `現在値から+${(((shortAbove - price) / price) * 100).toFixed(1)}%圏内に大量ショート清算帯。価格がここに達するとスクイーズで急騰しやすい` })
+    if (longBelow && (price - longBelow) < price * 0.03)
+      signals.push({ label: 'ロング清算帯', value: `$${longBelow.toLocaleString()}`, verdict: 'bear', weight: 2,
+        reason: `現在値から-${(((price - longBelow) / price) * 100).toFixed(1)}%圏内に大量ロング清算帯。下抜けると連鎖清算で急落しやすい` })
+  }
+
+  // ── 清算方向 ───────────────────────────────────────────────
+  const shortLiq = (liq.okx_short_liq_btc || 0) + (liq.binance_short_liq_btc || 0) + (liq.bybit_short_liq_btc || 0)
+  const longLiq  = (liq.okx_long_liq_btc  || 0) + (liq.binance_long_liq_btc  || 0) + (liq.bybit_long_liq_btc  || 0)
+  if (shortLiq > 0 || longLiq > 0) {
+    const ratio = shortLiq / (longLiq + 0.0001)
+    if (ratio > 3)
+      signals.push({ label: '清算方向', value: `SHORT ×${ratio.toFixed(1)}`, verdict: 'bull', weight: 2,
+        reason: `ショート清算がロング清算の${ratio.toFixed(1)}倍。売り方が一方的に焼かれており買い圧力強い` })
+    else if (ratio < 0.33)
+      signals.push({ label: '清算方向', value: `LONG ×${(1/ratio).toFixed(1)}`, verdict: 'bear', weight: 2,
+        reason: `ロング清算がショート清算の${(1/ratio).toFixed(1)}倍。買い方が清算されており売り圧力強い` })
+  }
+
+  // ── ETFフロー ──────────────────────────────────────────────
+  const etfDaily = etf.daily_total_musd
+  if (etfDaily != null) {
+    if (etfDaily > 300)
+      signals.push({ label: 'ETF Flow', value: `+$${etfDaily.toFixed(0)}M`, verdict: 'bull', weight: 2,
+        reason: `機関投資家が${etfDaily.toFixed(0)}M$(${(etfDaily/1000).toFixed(1)}B)を1日でBTC ETFに流入。強い買い需要` })
+    else if (etfDaily < -200)
+      signals.push({ label: 'ETF Flow', value: `$${etfDaily.toFixed(0)}M`, verdict: 'bear', weight: 2,
+        reason: `ETFから${Math.abs(etfDaily).toFixed(0)}M$の流出。機関投資家が利確・撤退している` })
+    else if (etfDaily > 50)
+      signals.push({ label: 'ETF Flow', value: `+$${etfDaily.toFixed(0)}M`, verdict: 'bull', weight: 1,
+        reason: '小規模ながら機関資金の継続流入。買い圧力が続いている' })
+  }
+
+  // ── 取引所フロー ───────────────────────────────────────────
+  const netFlow = ef.net_usd
+  if (netFlow != null) {
+    if (netFlow < -100_000_000)
+      signals.push({ label: '取引所流出', value: `-$${(Math.abs(netFlow)/1e6).toFixed(0)}M`, verdict: 'bull', weight: 2,
+        reason: '取引所からの大量BTCアウトフロー = ホドラーが保管に移している。売り圧力の構造的低下' })
+    else if (netFlow > 100_000_000)
+      signals.push({ label: '取引所流入', value: `+$${(netFlow/1e6).toFixed(0)}M`, verdict: 'bear', weight: 2,
+        reason: '取引所へのBTC大量インフロー = 売却準備が増えている。売り圧力上昇のサイン' })
+  }
+
+  // ── DVOL ──────────────────────────────────────────────────
+  const dvol = vol.dvol
+  if (dvol != null) {
+    if (dvol > 80)
+      signals.push({ label: 'DVOL', value: dvol.toFixed(1), verdict: 'neutral', weight: 1,
+        reason: `インプライドボラティリティ高水準(${dvol.toFixed(0)})。大きな価格変動が迫っている可能性。方向は不明` })
+    else if (dvol < 40)
+      signals.push({ label: 'DVOL', value: dvol.toFixed(1), verdict: 'neutral', weight: 1,
+        reason: `ボラティリティ低水準(${dvol.toFixed(0)})。コイルドスプリング状態。近いうちに一方向への大きな動きが来やすい` })
+  }
+
+  // ── Coinbase Premium ──────────────────────────────────────
+  const cbp = d.coinbase_premium_pct
+  if (cbp != null) {
+    if (cbp > 0.002)
+      signals.push({ label: 'CB Premium', value: `+${(cbp * 100).toFixed(3)}%`, verdict: 'bull', weight: 1,
+        reason: '米機関・リテール勢がCoinbaseでBinanceより高値で買っている。米国からの買い需要強い' })
+    else if (cbp < -0.002)
+      signals.push({ label: 'CB Premium', value: `${(cbp * 100).toFixed(3)}%`, verdict: 'bear', weight: 1,
+        reason: 'Coinbaseでディスカウント取引。米国勢が売り側に傾いている' })
+  }
+
+  return signals
+}
+
+function AnalysisPanel({ d }: { d: any }) {
+  const signals = buildSignals(d)
+  const bullW = signals.filter(s => s.verdict === 'bull').reduce((a, s) => a + s.weight, 0)
+  const bearW = signals.filter(s => s.verdict === 'bear').reduce((a, s) => a + s.weight, 0)
+  const total = bullW + bearW || 1
+  const bullPct = Math.round(bullW / total * 100)
+  const bearPct = 100 - bullPct
+
+  let bias: 'BULL' | 'BEAR' | 'NEUTRAL' = 'NEUTRAL'
+  let biasColor = 'var(--btc)'
+  if (bullW >= bearW + 3) { bias = 'BULL'; biasColor = 'var(--green)' }
+  else if (bearW >= bullW + 3) { bias = 'BEAR'; biasColor = 'var(--red)' }
+
+  const topBull = signals.filter(s => s.verdict === 'bull').sort((a, b) => b.weight - a.weight).slice(0, 2)
+  const topBear = signals.filter(s => s.verdict === 'bear').sort((a, b) => b.weight - a.weight).slice(0, 2)
+
+  return (
+    <GlassCard style={{ padding: '20px 24px', marginBottom: 16 }}>
+      {/* ヘッダー */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 2, letterSpacing: '0.1em' }}>AI MARKET ANALYSIS</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: biasColor, textShadow: `0 0 24px ${biasColor}66`, letterSpacing: '0.05em' }}>
+            {bias}
+          </div>
+        </div>
+        {/* バー */}
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{ display: 'flex', height: 10, borderRadius: 6, overflow: 'hidden', gap: 1 }}>
+            <div style={{ width: `${bullPct}%`, background: 'linear-gradient(90deg,#00FF88,#00FF8866)', transition: 'width 0.5s' }} />
+            <div style={{ width: `${bearPct}%`, background: 'linear-gradient(90deg,#FF336666,#FF3366)', transition: 'width 0.5s' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: '0.7rem', fontFamily: 'var(--mono)' }}>
+            <span style={{ color: 'var(--green)' }}>BULL {bullPct}%</span>
+            <span style={{ color: 'var(--red)' }}>BEAR {bearPct}%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* シグナル一覧 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 10 }}>
+        {signals.map((s, i) => {
+          const bg    = s.verdict === 'bull' ? 'rgba(0,255,136,0.06)' : s.verdict === 'bear' ? 'rgba(255,51,102,0.06)' : 'rgba(255,255,255,0.03)'
+          const bd    = s.verdict === 'bull' ? 'rgba(0,255,136,0.2)' : s.verdict === 'bear' ? 'rgba(255,51,102,0.2)' : 'rgba(255,255,255,0.08)'
+          const col   = s.verdict === 'bull' ? 'var(--green)' : s.verdict === 'bear' ? 'var(--red)' : 'var(--text-muted)'
+          const icon  = s.verdict === 'bull' ? '▲' : s.verdict === 'bear' ? '▼' : '●'
+          return (
+            <div key={i} style={{ background: bg, border: `1px solid ${bd}`, borderRadius: 10, padding: '10px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--sans)' }}>{s.label}</span>
+                <span style={{ fontSize: '0.8rem', fontFamily: 'var(--mono)', fontWeight: 700, color: col }}>
+                  {icon} {s.value}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: 1.5 }}>{s.reason}</div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* 総合コメント */}
+      {(topBull.length > 0 || topBear.length > 0) && (
+        <div style={{ marginTop: 14, padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 10, borderLeft: `3px solid ${biasColor}` }}>
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.08em' }}>SUMMARY</div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.7 }}>
+            {topBull.length > 0 && (
+              <span style={{ color: 'var(--green)' }}>
+                【強気材料】{topBull.map(s => s.reason).join('。')}{'. '}
+              </span>
+            )}
+            {topBear.length > 0 && (
+              <span style={{ color: 'var(--red)' }}>
+                【弱気材料】{topBear.map(s => s.reason).join('。')}.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </GlassCard>
+  )
+}
+
+// ============================================================
 // タブコンテンツ
 // ============================================================
 
@@ -145,6 +358,9 @@ function TabOverview({ d, tech }: { d: any; tech: any }) {
 
   return (
     <div className="tab-content">
+      {/* AI分析パネル */}
+      <AnalysisPanel d={d} />
+
       {/* シグナルバナー */}
       <div style={{
         background: sigBg,
@@ -1193,12 +1409,214 @@ const EXCHANGE_COLORS: Record<string, string> = {
   bitmex:  '#FF6B35',
 }
 
+function LiqMapChart({ lh, price }: { lh: any; price: number }) {
+  const [candles, setCandles] = useState<Candle[]>([])
+  const [loading, setLoading] = useState(true)
+  const [tf, setTf] = useState<'1h' | '4h' | '1d'>('1h')
+
+  const tfCfg: Record<string, { interval: string; fetch: number; disp: number }> = {
+    '1h': { interval: '1h', fetch: 320, disp: 100 },
+    '4h': { interval: '4h', fetch: 300, disp: 80  },
+    '1d': { interval: '1d', fetch: 350, disp: 120 },
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    const { interval, fetch: limit } = tfCfg[tf]
+    fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=${limit}`)
+      .then(r => r.json())
+      .then((rows: any[]) => {
+        if (cancelled) return
+        setCandles(rows.map((r: any) => ({
+          t: r[0], o: parseFloat(r[1]), h: parseFloat(r[2]), l: parseFloat(r[3]), c: parseFloat(r[4]),
+        })))
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [tf])
+
+  const levels  = (lh.liq_levels || []) as any[]
+  const events  = (lh.all_exchange_liq || lh.okx_recent_liq || []) as any[]
+  const maxBtc  = Math.max(...levels.map((l: any) => Math.max(l.long_liq_btc, l.short_liq_btc)), 1)
+
+  // ---- SVG layout ----
+  const W = 920, H = 420, PL = 68, PR = 100, PT = 12, PB = 24
+  const cw = W - PL - PR, ch = H - PT - PB
+
+  const { disp } = tfCfg[tf]
+  const start   = Math.max(0, candles.length - disp)
+  const vis     = candles.slice(start)
+  const n       = vis.length
+
+  // price range: candles + all liq levels (so lines are always visible)
+  const levelPrices = levels.map((l: any) => l.price_level)
+  const allH = vis.map(c => c.h).concat(levelPrices)
+  const allL = vis.map(c => c.l).concat(levelPrices)
+  const priceHi = allH.length ? Math.max(...allH) * 1.002 : price * 1.2
+  const priceLo = allL.length ? Math.min(...allL) * 0.998 : price * 0.8
+  const pRange  = priceHi - priceLo || 1
+
+  const px  = (i: number) => PL + (i + 0.5) * (cw / Math.max(n, 1))
+  const py  = (v: number) => PT + ch - (v - priceLo) / pRange * ch
+  const bw  = Math.max(1, cw / Math.max(n, 1) * 0.7)
+
+  // map event timestamp → x position
+  const evX = (ev: any): number => {
+    if (!ev.time_ms || !vis.length) return PL + cw - 8
+    for (let i = 0; i < vis.length - 1; i++) {
+      if (vis[i].t <= ev.time_ms && ev.time_ms < vis[i + 1].t) return px(i)
+    }
+    return ev.time_ms >= vis[vis.length - 1].t ? PL + cw - 8 : PL + 8
+  }
+
+  const gridPrices = Array.from({ length: 6 }, (_, i) => priceLo + (pRange * i) / 5)
+
+  const tfLabels: Record<string, string> = { '1h': '1時間', '4h': '4時間', '1d': '日足' }
+
+  return (
+    <div>
+      {/* timeframe selector */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        {(['1h', '4h', '1d'] as const).map(t => (
+          <button key={t} onClick={() => setTf(t)} style={{
+            padding: '5px 14px', borderRadius: 8, fontSize: '0.8rem', fontFamily: 'var(--mono)',
+            fontWeight: tf === t ? 700 : 400,
+            background: tf === t ? 'var(--btc)' : 'rgba(255,255,255,0.06)',
+            color: tf === t ? '#000' : 'var(--text-dim)',
+            border: tf === t ? 'none' : '1px solid rgba(255,255,255,0.1)',
+            cursor: 'pointer',
+          }}>{tfLabels[t]}</button>
+        ))}
+        {loading && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', alignSelf: 'center' }}>読み込み中...</span>}
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+        {/* background clip region */}
+        <defs>
+          <clipPath id="chart-area">
+            <rect x={PL} y={PT} width={cw} height={ch} />
+          </clipPath>
+        </defs>
+
+        {/* grid */}
+        {gridPrices.map((p, i) => {
+          const y = py(p)
+          return (
+            <g key={i}>
+              <line x1={PL} x2={PL + cw} y1={y} y2={y} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+              <text x={PL - 5} y={y + 4} textAnchor="end" fill="#555" fontSize="10" fontFamily="monospace">
+                ${(p / 1000).toFixed(1)}K
+              </text>
+            </g>
+          )
+        })}
+
+        {/* liquidation level lines — drawn behind candles */}
+        <g clipPath="url(#chart-area)">
+          {levels.map((lv: any) => {
+            const isAbove = lv.price_level > price
+            const btc     = isAbove ? lv.short_liq_btc : lv.long_liq_btc
+            const alpha   = 0.18 + (btc / maxBtc) * 0.55
+            const stroke  = isAbove ? '#00FF88' : '#FF3366'
+            const sw      = 1 + (btc / maxBtc) * 2.5
+            const y       = py(lv.price_level)
+            return (
+              <line key={lv.price_level}
+                x1={PL} x2={PL + cw} y1={y} y2={y}
+                stroke={stroke} strokeWidth={sw}
+                strokeDasharray="5 4"
+                opacity={alpha}
+              />
+            )
+          })}
+        </g>
+
+        {/* current price line */}
+        <line x1={PL} x2={PL + cw} y1={py(price)} y2={py(price)}
+          stroke="#F7931A" strokeWidth="1.5" strokeDasharray="8 4" opacity="0.9" />
+
+        {/* candles */}
+        <g clipPath="url(#chart-area)">
+          {vis.map((c, i) => {
+            const isUp  = c.c >= c.o
+            const col   = isUp ? '#00FF88' : '#FF3366'
+            const x     = px(i)
+            const bodyT = Math.min(py(c.o), py(c.c))
+            const bodyH = Math.max(1, Math.abs(py(c.c) - py(c.o)))
+            return (
+              <g key={i}>
+                <line x1={x} x2={x} y1={py(c.h)} y2={py(c.l)} stroke={col} strokeWidth="1" opacity="0.55" />
+                <rect x={x - bw / 2} y={bodyT} width={bw} height={bodyH} fill={col} opacity="0.85" rx="0.5" />
+              </g>
+            )
+          })}
+        </g>
+
+        {/* liquidation event dots on chart */}
+        <g clipPath="url(#chart-area)">
+          {events.map((ev: any, i: number) => {
+            const evY   = py(ev.price)
+            const evXv  = evX(ev)
+            const isLng = ev.side === 'long'
+            const dc    = isLng ? '#FF3366' : '#00FF88'
+            const ec    = EXCHANGE_COLORS[ev.exchange || 'okx'] || '#888'
+            return (
+              <circle key={i} cx={evXv} cy={evY} r="4.5"
+                fill={dc} stroke={ec} strokeWidth="1.5" opacity="0.92" />
+            )
+          })}
+        </g>
+
+        {/* right-side labels for liq levels */}
+        {levels.map((lv: any) => {
+          const isAbove = lv.price_level > price
+          const btc     = isAbove ? lv.short_liq_btc : lv.long_liq_btc
+          const alpha   = 0.4 + (btc / maxBtc) * 0.6
+          const col     = isAbove ? '#00FF88' : '#FF3366'
+          const y       = py(lv.price_level)
+          return (
+            <g key={lv.price_level}>
+              <text x={PL + cw + 5} y={y - 2} fill={col} fontSize="9" fontFamily="monospace" opacity={alpha}>
+                ${(lv.price_level / 1000).toFixed(1)}K
+              </text>
+              <text x={PL + cw + 5} y={y + 9} fill={col} fontSize="8" fontFamily="monospace" opacity={alpha * 0.75}>
+                {fmtN(btc)}BTC
+              </text>
+            </g>
+          )
+        })}
+
+        {/* NOW label */}
+        <text x={PL + cw + 5} y={py(price) + 4} fill="#F7931A" fontSize="9" fontFamily="monospace" fontWeight="bold">
+          NOW
+        </text>
+
+        {/* legend */}
+        <g transform={`translate(${PL}, ${H - 6})`}>
+          {[
+            ['─ ロング清算水準', '#FF3366'],
+            ['─ ショート清算水準', '#00FF88'],
+            ['● OKX', '#00D4FF'],
+            ['● Binance', '#F7931A'],
+            ['● Bybit', '#9B59B6'],
+            ['● BitMEX', '#FF6B35'],
+          ].map(([label, color], i) => (
+            <text key={label} x={i * 120} y={0} fill={color} fontSize="9" fontFamily="monospace" opacity="0.8">
+              {label}
+            </text>
+          ))}
+        </g>
+      </svg>
+    </div>
+  )
+}
+
 function TabLiqMap({ d }: { d: any }) {
-  const lh     = d.liq_heatmap || {}
-  const kl     = lh.key_levels || {}
-  const price  = d.btc_price || 80000
-  const levels = (lh.liq_levels || []).sort((a: any, b: any) => b.price_level - a.price_level)
-  const maxBTC = Math.max(...levels.map((l: any) => Math.max(l.long_liq_btc, l.short_liq_btc)), 1)
+  const lh    = d.liq_heatmap || {}
+  const kl    = lh.key_levels || {}
+  const price = d.btc_price || 80000
 
   return (
     <div className="tab-content">
@@ -1229,90 +1647,9 @@ function TabLiqMap({ d }: { d: any }) {
         />
       </div>
 
-      <SectionHeader title="清算水準マップ" sub="推定BTC清算量 + 全取引所実清算イベント" />
-      <GlassCard style={{ padding: '20px 24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {levels.map((lv: any) => {
-            const isAbove  = lv.price_level > price
-            const size     = isAbove ? lv.short_liq_btc : lv.long_liq_btc
-            const w        = (size / maxBTC * 100)
-            const isCurrent = Math.abs(lv.price_level - price) < 2000
-            const color    = isAbove ? 'var(--green)' : 'var(--red)'
-            const glow     = isAbove ? 'rgba(0,255,136,0.3)' : 'rgba(255,51,102,0.3)'
-
-            // All exchange events within ±1000 of this price level
-            const allEvents = (lh.all_exchange_liq || lh.okx_recent_liq || []).filter(
-              (ev: any) => Math.abs(ev.price - lv.price_level) <= 1000
-            )
-
-            return (
-              <div key={lv.price_level} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: isCurrent ? '4px 8px' : '0',
-                background: isCurrent ? 'rgba(247,147,26,0.06)' : '',
-                borderRadius: isCurrent ? 6 : 0,
-                border: isCurrent ? '1px solid rgba(247,147,26,0.2)' : 'none',
-              }}>
-                <div style={{
-                  minWidth: 90, fontFamily: 'var(--mono)', fontSize: '0.8rem',
-                  color: isCurrent ? 'var(--btc)' : isAbove ? 'var(--green)' : 'var(--red)',
-                  fontWeight: isCurrent ? 700 : 500,
-                }}>
-                  ${lv.price_level.toLocaleString()}
-                  {isCurrent && <span style={{ fontSize: '0.6rem', marginLeft: 4, color: 'var(--btc)' }}>◆NOW</span>}
-                </div>
-                <div style={{ flex: 1, height: 22, background: 'rgba(255,255,255,0.03)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
-                  <div style={{
-                    width: `${w}%`, height: '100%', borderRadius: 4,
-                    background: `linear-gradient(90deg,${color}66,${color}22)`,
-                    boxShadow: `inset 0 0 12px ${glow}`,
-                    transition: 'width 0.5s ease',
-                  }} />
-                  {/* All exchange event markers overlaid on bar */}
-                  {allEvents.map((ev: any, ei: number) => {
-                    const isLong = ev.side === 'long'
-                    const exColor = EXCHANGE_COLORS[ev.exchange || 'okx'] || '#888'
-                    const dotColor = isLong ? '#FF3366' : '#00FF88'
-                    const markerPct = Math.min(w * 0.9, Math.max(4, w * 0.4 + ei * 4))
-                    const exchName = (ev.exchange || 'okx').toUpperCase()
-                    return (
-                      <div key={ei}
-                        title={`${exchName} ${isLong ? 'ロング' : 'ショート'}清算 $${ev.price?.toLocaleString()} / ${ev.size_btc?.toFixed(2)} BTC`}
-                        style={{
-                          position: 'absolute', top: '50%', left: `${markerPct}%`,
-                          transform: 'translate(-50%,-50%)',
-                          width: 11, height: 11, borderRadius: '50%',
-                          background: dotColor,
-                          boxShadow: `0 0 7px ${dotColor}, 0 0 3px ${exColor}`,
-                          border: `2px solid ${exColor}`,
-                          zIndex: 2,
-                        }}
-                      />
-                    )
-                  })}
-                </div>
-                <div style={{ minWidth: 80, fontSize: '0.75rem', fontFamily: 'var(--mono)', color, textAlign: 'right' }}>
-                  {fmtN(size)} BTC
-                  {allEvents.length > 0 && (
-                    <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                      hit×{allEvents.length}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="divider" />
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-          <span><span style={{ color: 'var(--red)' }}>■</span> ロング清算帯</span>
-          <span><span style={{ color: 'var(--green)' }}>■</span> ショート清算帯</span>
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#FF3366', border: '2px solid #00D4FF', marginRight: 4 }} />OKX 実清算</span>
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#00FF88', border: '2px solid #F7931A', marginRight: 4 }} />Binance 実清算</span>
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#FF3366', border: '2px solid #9B59B6', marginRight: 4 }} />Bybit 実清算</span>
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#00FF88', border: '2px solid #FF6B35', marginRight: 4 }} />BitMEX 実清算</span>
-        </div>
+      <SectionHeader title="清算水準マップ" sub="ローソク足 + 清算水準ライン + 実清算イベント" />
+      <GlassCard style={{ padding: '16px 20px' }}>
+        <LiqMapChart lh={lh} price={price} />
       </GlassCard>
 
       {(() => {
@@ -1336,10 +1673,10 @@ function TabLiqMap({ d }: { d: any }) {
                 </thead>
                 <tbody>
                   {sortedEvts.map((ev: any, i: number) => {
-                    const isLong = ev.side === 'long'
+                    const isLong  = ev.side === 'long'
                     const exColor = EXCHANGE_COLORS[ev.exchange || 'okx'] || '#888'
-                    const tsMs = ev.time_ms
-                    let timeStr = '—'
+                    const tsMs    = ev.time_ms
+                    let timeStr   = '—'
                     if (tsMs) {
                       const jst = new Date(tsMs + 9 * 3600 * 1000)
                       timeStr = `${jst.getMonth()+1}/${jst.getDate()} ${jst.getHours()}:${String(jst.getMinutes()).padStart(2,'0')}`
