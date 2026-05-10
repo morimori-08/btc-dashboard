@@ -766,33 +766,58 @@ function TabLiq({ d }: { d: any }) {
 
   return (
     <div className="tab-content">
-      <div className="grid-4" style={{ marginBottom: 16 }}>
-        <MetricCard
-          label="OKX ショート清算"
-          value={liq.okx_short_liq_btc != null ? `${liq.okx_short_liq_btc.toFixed(1)} BTC` : '—'}
-          color="green"
-        />
-        <MetricCard
-          label="OKX ロング清算"
-          value={liq.okx_long_liq_btc != null ? `${liq.okx_long_liq_btc.toFixed(1)} BTC` : '—'}
-          color="red"
-        />
-        <MetricCard
-          label="BitMEX 清算件数"
-          value={liq.bitmex_liq_count_1h != null ? `${liq.bitmex_liq_count_1h} 件` : '—'}
-        />
-        <MetricCard
-          label="清算方向"
-          value={
-            liq.okx_short_liq_btc != null && liq.okx_long_liq_btc != null
-              ? liq.okx_short_liq_btc > liq.okx_long_liq_btc ? 'SHORT SQUEEZE' : 'LONG SQUEEZE'
-              : '—'
-          }
-          color={
-            liq.okx_short_liq_btc != null && liq.okx_short_liq_btc > liq.okx_long_liq_btc ? 'green' : 'red'
-          }
-        />
-      </div>
+      {/* 主要取引所 清算サマリー */}
+      {(() => {
+        const totalLong  = (liq.okx_long_liq_btc  || 0) + (liq.binance_long_liq_btc  || 0) + (liq.bybit_long_liq_btc  || 0) + (liq.bitmex_long_liq_btc  || 0)
+        const totalShort = (liq.okx_short_liq_btc || 0) + (liq.binance_short_liq_btc || 0) + (liq.bybit_short_liq_btc || 0) + (liq.bitmex_short_liq_btc || 0)
+        const dir = totalShort > totalLong ? 'SHORT SQUEEZE' : 'LONG SQUEEZE'
+        return (
+          <div className="grid-4" style={{ marginBottom: 16 }}>
+            <MetricCard label="合計ロング清算" value={`${fmtN(totalLong)} BTC`} color="red" />
+            <MetricCard label="合計ショート清算" value={`${fmtN(totalShort)} BTC`} color="green" />
+            <MetricCard label="BitMEX 清算件数" value={liq.bitmex_liq_count_1h != null ? `${liq.bitmex_liq_count_1h} 件` : '—'} />
+            <MetricCard label="清算方向" value={dir} color={totalShort > totalLong ? 'green' : 'red'} />
+          </div>
+        )
+      })()}
+
+      {/* 取引所別清算テーブル */}
+      <SectionHeader title="主要取引所 清算サマリー" sub="直近リアルタイム" />
+      <GlassCard style={{ padding: '4px 0', marginBottom: 16, overflowX: 'auto' }}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', paddingLeft: 16 }}>取引所</th>
+              <th>ロング清算 (BTC)</th>
+              <th>ショート清算 (BTC)</th>
+              <th>Net</th>
+              <th>優勢</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { name: 'Binance', long: liq.binance_long_liq_btc, short: liq.binance_short_liq_btc },
+              { name: 'Bybit',   long: liq.bybit_long_liq_btc,   short: liq.bybit_short_liq_btc   },
+              { name: 'OKX',     long: liq.okx_long_liq_btc,     short: liq.okx_short_liq_btc     },
+              { name: 'BitMEX',  long: liq.bitmex_long_liq_btc,  short: liq.bitmex_short_liq_btc  },
+            ].map(({ name, long: l, short: s }) => {
+              const net = (s || 0) - (l || 0)
+              const dom = (s || 0) > (l || 0) ? 'SHORT↑' : 'LONG↓'
+              return (
+                <tr key={name}>
+                  <td style={{ paddingLeft: 16, fontWeight: 700, color: 'var(--btc)' }}>{name}</td>
+                  <td style={{ color: 'var(--red)',   fontFamily: 'var(--mono)', fontWeight: 600 }}>{l != null ? fmtN(l) : '—'}</td>
+                  <td style={{ color: 'var(--green)', fontFamily: 'var(--mono)', fontWeight: 600 }}>{s != null ? fmtN(s) : '—'}</td>
+                  <td style={{ color: net > 0 ? 'var(--green)' : 'var(--red)', fontFamily: 'var(--mono)' }}>
+                    {net > 0 ? '+' : ''}{fmtN(net)}
+                  </td>
+                  <td><Badge label={dom} type={(s || 0) > (l || 0) ? 'green' : 'red'} /></td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </GlassCard>
 
       <SectionHeader title="Taker Buy/Sell 比率" sub="Binance · 1H" />
       <GlassCard style={{ padding: '4px 0', marginBottom: 16, overflowX: 'auto' }}>
@@ -894,6 +919,98 @@ function TabLiq({ d }: { d: any }) {
   )
 }
 
+// ---- candle chart helpers ----
+type Candle = { t: number; o: number; h: number; l: number; c: number }
+
+function calcSMA(closes: number[], period: number): (number | null)[] {
+  return closes.map((_, i) =>
+    i < period - 1 ? null : closes.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period
+  )
+}
+
+function CandleChart({ candles, interval }: { candles: Candle[]; interval: string }) {
+  if (!candles.length) return <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>データ取得中...</div>
+
+  const W = 900, H = 320, PAD_L = 72, PAD_R = 16, PAD_T = 16, PAD_B = 32
+  const cw = W - PAD_L - PAD_R
+  const ch = H - PAD_T - PAD_B
+  const n  = candles.length
+
+  const highs  = candles.map(c => c.h)
+  const lows   = candles.map(c => c.l)
+  const closes = candles.map(c => c.c)
+  const priceHi = Math.max(...highs) * 1.001
+  const priceLo = Math.min(...lows)  * 0.999
+  const priceRange = priceHi - priceLo
+
+  const sma20  = calcSMA(closes, 20)
+  const sma75  = calcSMA(closes, 75)
+  const sma200 = calcSMA(closes, 200)
+
+  const px = (i: number) => PAD_L + (i + 0.5) * (cw / n)
+  const py = (v: number) => PAD_T + ch - (v - priceLo) / priceRange * ch
+
+  const barW = Math.max(1, cw / n * 0.7)
+
+  // price labels
+  const nLabels = 5
+  const priceLabels = Array.from({ length: nLabels }, (_, i) => priceLo + (priceRange * i) / (nLabels - 1))
+
+  // SMA line path
+  const linePoints = (sma: (number | null)[]) =>
+    sma.reduce((path, v, i) => {
+      if (v == null) return path
+      const x = px(i), y = py(v)
+      const prev = sma.slice(0, i).findIndex(s => s != null) === i - 1 || path === '' ? 'M' : (sma[i - 1] != null ? 'L' : 'M')
+      return `${path}${prev}${x.toFixed(1)} ${y.toFixed(1)} `
+    }, '')
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+      {/* grid */}
+      {priceLabels.map((p, i) => {
+        const y = py(p)
+        return (
+          <g key={i}>
+            <line x1={PAD_L} x2={W - PAD_R} y1={y} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+            <text x={PAD_L - 6} y={y + 4} textAnchor="end" fill="#666" fontSize="10" fontFamily="monospace">
+              {p >= 1000 ? `${(p / 1000).toFixed(0)}K` : p.toFixed(0)}
+            </text>
+          </g>
+        )
+      })}
+      {/* candles */}
+      {candles.map((c, i) => {
+        const isUp = c.c >= c.o
+        const color = isUp ? '#00FF88' : '#FF3366'
+        const x = px(i)
+        const yH = py(c.h), yL = py(c.l)
+        const yO = py(c.o), yC = py(c.c)
+        const bodyTop = Math.min(yO, yC)
+        const bodyH   = Math.max(1, Math.abs(yC - yO))
+        return (
+          <g key={i}>
+            <line x1={x} x2={x} y1={yH} y2={yL} stroke={color} strokeWidth="1" opacity="0.7" />
+            <rect x={x - barW / 2} y={bodyTop} width={barW} height={bodyH}
+              fill={isUp ? color : color} opacity={isUp ? 0.85 : 0.85} rx="0.5" />
+          </g>
+        )
+      })}
+      {/* SMA lines */}
+      <path d={linePoints(sma20)}  stroke="#00D4FF" strokeWidth="1.5" fill="none" opacity="0.9" />
+      <path d={linePoints(sma75)}  stroke="#F7931A" strokeWidth="1.5" fill="none" opacity="0.9" />
+      <path d={linePoints(sma200)} stroke="#FF3366" strokeWidth="1.5" fill="none" opacity="0.9" />
+      {/* legend */}
+      {[['SMA20','#00D4FF'],['SMA75','#F7931A'],['SMA200','#FF3366']].map(([label, color], i) => (
+        <g key={label} transform={`translate(${PAD_L + i * 80},${H - 8})`}>
+          <line x1="0" x2="16" y1="0" y2="0" stroke={color} strokeWidth="2" />
+          <text x="20" y="4" fill={color} fontSize="10" fontFamily="monospace">{label}</text>
+        </g>
+      ))}
+    </svg>
+  )
+}
+
 function TabTech({ d }: { d: any }) {
   const tech = d.technical || {}
   const TFs: string[] = ['1h', '4h', '1d', '1w']
@@ -901,6 +1018,31 @@ function TabTech({ d }: { d: any }) {
   const sig      = tech.signal || 'NEUTRAL'
   const score    = tech.composite_score || 0
   const sigColor = sig === 'BULL' ? 'var(--green)' : sig === 'BEAR' ? 'var(--red)' : 'var(--btc)'
+
+  const [chartTF, setChartTF] = useState<string>('1h')
+  const [candles, setCandles] = useState<Candle[]>([])
+  const [chartLoading, setChartLoading] = useState(false)
+
+  const intervalMap: Record<string, string> = { '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1w' }
+  const limitMap:    Record<string, number>  = { '1h': 120, '4h': 120, '1d': 200, '1w': 104 }
+
+  useEffect(() => {
+    let cancelled = false
+    setChartLoading(true)
+    const interval = intervalMap[chartTF]
+    const limit    = limitMap[chartTF]
+    fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=${limit}`)
+      .then(r => r.json())
+      .then((rows: any[]) => {
+        if (cancelled) return
+        setCandles(rows.map((r: any) => ({
+          t: r[0], o: parseFloat(r[1]), h: parseFloat(r[2]), l: parseFloat(r[3]), c: parseFloat(r[4]),
+        })))
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setChartLoading(false) })
+    return () => { cancelled = true }
+  }, [chartTF])
 
   return (
     <div className="tab-content">
@@ -944,6 +1086,25 @@ function TabTech({ d }: { d: any }) {
             })}
           </div>
         </div>
+      </GlassCard>
+
+      {/* ローソク足チャート */}
+      <SectionHeader title="BTC/USDT チャート" sub="SMA20 (水) · SMA75 (橙) · SMA200 (赤)" />
+      <GlassCard style={{ padding: '16px 20px' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          {TFs.map(tf => (
+            <button key={tf} onClick={() => setChartTF(tf)} style={{
+              padding: '5px 14px', borderRadius: 8, fontSize: '0.8rem', fontFamily: 'var(--mono)',
+              fontWeight: chartTF === tf ? 700 : 400,
+              background: chartTF === tf ? 'var(--btc)' : 'rgba(255,255,255,0.06)',
+              color: chartTF === tf ? '#000' : 'var(--text-dim)',
+              border: chartTF === tf ? 'none' : '1px solid rgba(255,255,255,0.1)',
+              cursor: 'pointer', transition: 'all 0.2s',
+            }}>{TFLabels[tf]}</button>
+          ))}
+          {chartLoading && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', alignSelf: 'center' }}>読み込み中...</span>}
+        </div>
+        <CandleChart candles={candles} interval={chartTF} />
       </GlassCard>
 
       {/* SMAテーブル */}
@@ -1006,6 +1167,13 @@ function TabTech({ d }: { d: any }) {
   )
 }
 
+const EXCHANGE_COLORS: Record<string, string> = {
+  okx:     '#00D4FF',
+  binance: '#F7931A',
+  bybit:   '#9B59B6',
+  bitmex:  '#FF6B35',
+}
+
 function TabLiqMap({ d }: { d: any }) {
   const lh     = d.liq_heatmap || {}
   const kl     = lh.key_levels || {}
@@ -1042,7 +1210,7 @@ function TabLiqMap({ d }: { d: any }) {
         />
       </div>
 
-      <SectionHeader title="清算水準マップ" sub="推定BTC清算量" />
+      <SectionHeader title="清算水準マップ" sub="推定BTC清算量 + 全取引所実清算イベント" />
       <GlassCard style={{ padding: '20px 24px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {levels.map((lv: any) => {
@@ -1052,6 +1220,11 @@ function TabLiqMap({ d }: { d: any }) {
             const isCurrent = Math.abs(lv.price_level - price) < 2000
             const color    = isAbove ? 'var(--green)' : 'var(--red)'
             const glow     = isAbove ? 'rgba(0,255,136,0.3)' : 'rgba(255,51,102,0.3)'
+
+            // All exchange events within ±1000 of this price level
+            const allEvents = (lh.all_exchange_liq || lh.okx_recent_liq || []).filter(
+              (ev: any) => Math.abs(ev.price - lv.price_level) <= 1000
+            )
 
             return (
               <div key={lv.price_level} style={{
@@ -1076,9 +1249,36 @@ function TabLiqMap({ d }: { d: any }) {
                     boxShadow: `inset 0 0 12px ${glow}`,
                     transition: 'width 0.5s ease',
                   }} />
+                  {/* All exchange event markers overlaid on bar */}
+                  {allEvents.map((ev: any, ei: number) => {
+                    const isLong = ev.side === 'long'
+                    const exColor = EXCHANGE_COLORS[ev.exchange || 'okx'] || '#888'
+                    const dotColor = isLong ? '#FF3366' : '#00FF88'
+                    const markerPct = Math.min(w * 0.9, Math.max(4, w * 0.4 + ei * 4))
+                    const exchName = (ev.exchange || 'okx').toUpperCase()
+                    return (
+                      <div key={ei}
+                        title={`${exchName} ${isLong ? 'ロング' : 'ショート'}清算 $${ev.price?.toLocaleString()} / ${ev.size_btc?.toFixed(2)} BTC`}
+                        style={{
+                          position: 'absolute', top: '50%', left: `${markerPct}%`,
+                          transform: 'translate(-50%,-50%)',
+                          width: 11, height: 11, borderRadius: '50%',
+                          background: dotColor,
+                          boxShadow: `0 0 7px ${dotColor}, 0 0 3px ${exColor}`,
+                          border: `2px solid ${exColor}`,
+                          zIndex: 2,
+                        }}
+                      />
+                    )
+                  })}
                 </div>
                 <div style={{ minWidth: 80, fontSize: '0.75rem', fontFamily: 'var(--mono)', color, textAlign: 'right' }}>
                   {fmtN(size)} BTC
+                  {allEvents.length > 0 && (
+                    <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                      hit×{allEvents.length}
+                    </span>
+                  )}
                 </div>
               </div>
             )
@@ -1086,56 +1286,74 @@ function TabLiqMap({ d }: { d: any }) {
         </div>
 
         <div className="divider" />
-        <div style={{ display: 'flex', gap: 16, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-          <span><span style={{ color: 'var(--red)' }}>■</span> ロング清算（価格下落で発生）</span>
-          <span><span style={{ color: 'var(--green)' }}>■</span> ショート清算（価格上昇で発生）</span>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          <span><span style={{ color: 'var(--red)' }}>■</span> ロング清算帯</span>
+          <span><span style={{ color: 'var(--green)' }}>■</span> ショート清算帯</span>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#FF3366', border: '2px solid #00D4FF', marginRight: 4 }} />OKX 実清算</span>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#00FF88', border: '2px solid #F7931A', marginRight: 4 }} />Binance 実清算</span>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#FF3366', border: '2px solid #9B59B6', marginRight: 4 }} />Bybit 実清算</span>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#00FF88', border: '2px solid #FF6B35', marginRight: 4 }} />BitMEX 実清算</span>
         </div>
       </GlassCard>
 
-      {lh.okx_recent_liq?.length > 0 && (
-        <>
-          <SectionHeader title="OKX 直近清算イベント" sub="実際の清算注文" />
-          <GlassCard style={{ padding: '4px 0', overflowX: 'auto' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', paddingLeft: 16 }}>時刻 (JST)</th>
-                  <th>サイド</th>
-                  <th>清算価格</th>
-                  <th>サイズ (BTC)</th>
-                  <th>推定USD</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lh.okx_recent_liq.slice(0, 10).map((ev: any, i: number) => {
-                  const isLong = ev.side === 'long'
-                  const ts = new Date(ev.time_ms)
-                  const jst = new Date(ts.getTime() + 9 * 3600 * 1000)
-                  return (
-                    <tr key={i}>
-                      <td style={{ paddingLeft: 16, fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {`${jst.getMonth()+1}/${jst.getDate()} ${jst.getHours()}:${String(jst.getMinutes()).padStart(2,'0')}`}
-                      </td>
-                      <td>
-                        <Badge label={isLong ? 'ロング清算' : 'ショート清算'} type={isLong ? 'red' : 'green'} />
-                      </td>
-                      <td style={{ color: 'var(--btc)', fontFamily: 'var(--mono)' }}>
-                        ${ev.price?.toLocaleString()}
-                      </td>
-                      <td style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>
-                        {ev.size_btc?.toFixed(2)}
-                      </td>
-                      <td style={{ color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
-                        {ev.price && ev.size_btc ? `$${(ev.price * ev.size_btc / 1000).toFixed(0)}K` : '—'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </GlassCard>
-        </>
-      )}
+      {(() => {
+        const allEvts: any[] = lh.all_exchange_liq || []
+        const sortedEvts = [...allEvts].sort((a, b) => (b.time_ms || 0) - (a.time_ms || 0)).slice(0, 20)
+        if (!sortedEvts.length) return null
+        return (
+          <>
+            <SectionHeader title="直近清算イベント" sub="Binance · Bybit · OKX · BitMEX" />
+            <GlassCard style={{ padding: '4px 0', overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', paddingLeft: 16 }}>時刻 (JST)</th>
+                    <th>取引所</th>
+                    <th>サイド</th>
+                    <th>清算価格</th>
+                    <th>サイズ (BTC)</th>
+                    <th>推定USD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedEvts.map((ev: any, i: number) => {
+                    const isLong = ev.side === 'long'
+                    const exColor = EXCHANGE_COLORS[ev.exchange || 'okx'] || '#888'
+                    const tsMs = ev.time_ms
+                    let timeStr = '—'
+                    if (tsMs) {
+                      const jst = new Date(tsMs + 9 * 3600 * 1000)
+                      timeStr = `${jst.getMonth()+1}/${jst.getDate()} ${jst.getHours()}:${String(jst.getMinutes()).padStart(2,'0')}`
+                    }
+                    return (
+                      <tr key={i}>
+                        <td style={{ paddingLeft: 16, fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {timeStr}
+                        </td>
+                        <td style={{ color: exColor, fontWeight: 700, fontSize: '0.8rem' }}>
+                          {(ev.exchange || 'OKX').toUpperCase()}
+                        </td>
+                        <td>
+                          <Badge label={isLong ? 'ロング清算' : 'ショート清算'} type={isLong ? 'red' : 'green'} />
+                        </td>
+                        <td style={{ color: 'var(--btc)', fontFamily: 'var(--mono)' }}>
+                          ${ev.price?.toLocaleString()}
+                        </td>
+                        <td style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>
+                          {ev.size_btc?.toFixed(4)}
+                        </td>
+                        <td style={{ color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
+                          {ev.price && ev.size_btc ? `$${(ev.price * ev.size_btc / 1000).toFixed(1)}K` : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </GlassCard>
+          </>
+        )
+      })()}
     </div>
   )
 }
