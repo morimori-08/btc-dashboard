@@ -8,3 +8,4 @@ node_modules/
 .next/
 .gstack/
 *.log
+frontend/.env.local
