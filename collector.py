@@ -556,7 +556,9 @@ async def _fetch_btc_dominance(session) -> Optional[float]:
     d = await _get(session, "https://api.coingecko.com/api/v3/global")
     if d:
         try:
-            return float(d["data"]["market_cap_percentage"]["btc"])
+            # CoinGecko /global returns {"data": {...}} wrapper
+            top = d.get("data", d)  # fallback to d itself if no "data" key
+            return float(top["market_cap_percentage"]["btc"])
         except Exception:
             pass
     return None
@@ -634,7 +636,7 @@ async def _fetch_vol(session) -> dict:
     if d:
         try:
             data = d.get("result", {}).get("data", [])
-            if data:
+            if data and len(data[-1]) >= 5:
                 result["dvol"] = round(float(data[-1][4]), 2)
         except Exception:
             pass
@@ -644,7 +646,7 @@ async def _fetch_vol(session) -> dict:
     if d:
         try:
             rv_data = d.get("result", [])
-            if rv_data:
+            if rv_data and len(rv_data[-1]) >= 2:
                 result["realized_vol"] = round(float(rv_data[-1][1]), 2)
         except Exception:
             pass
@@ -728,7 +730,7 @@ async def _fetch_macro(session) -> dict:
               "us10y": None, "us02y": None, "yield_spread": None}
     ticker_map = {
         "SPY": "spy", "GLD": "gld", "CL=F": "oil",
-        "^TNX": "us10y", "^IRX": "us02y",
+        "^TNX": "us10y", "^FVX": "us02y",  # ^FVX=5Y (^IRX=13-week was wrong; ^TYX=30Y)
     }
     # Yahoo Finance requires a cookie header to bypass 429 rate limiting
     yahoo_headers = {
@@ -995,7 +997,10 @@ async def _fetch_polymarket(session) -> list:
 # ================================================================
 
 async def _fetch_okx_liquidations(session) -> tuple:
-    """OKX BTC 清算量。returns (long_liq_btc, short_liq_btc)"""
+    """OKX BTC 清算量。returns (long_liq_btc, short_liq_btc)
+    Confirmed via live API: side='buy' + posSide='short' → SHORT position liquidated
+    side='sell' → LONG position liquidated
+    """
     long_liq = 0.0
     short_liq = 0.0
     d = await _get(
@@ -1010,16 +1015,18 @@ async def _fetch_okx_liquidations(session) -> tuple:
                 side = detail.get("side", "")
                 sz = float(detail.get("sz", 0) or 0)
                 if side == "sell":
-                    long_liq += sz
+                    long_liq += sz   # force-sell = LONG position liquidated
                 elif side == "buy":
-                    short_liq += sz
+                    short_liq += sz  # force-buy  = SHORT position liquidated
     except Exception as e:
         logger.warning("okx liq: %s", e)
     return long_liq, short_liq
 
 
 async def _fetch_bitmex_liquidations(session) -> tuple:
-    """BitMEX BTC/USDT 清算 → (long_btc, short_btc, count, events)"""
+    """BitMEX XBTUSDT 清算 → (long_btc, short_btc, count, events)
+    leavesQty is USD notional for XBTUSDT linear contract → convert to BTC via /price
+    """
     long_btc = 0.0
     short_btc = 0.0
     events = []
@@ -1028,17 +1035,18 @@ async def _fetch_bitmex_liquidations(session) -> tuple:
     if d and isinstance(d, list):
         try:
             for item in d:
-                side  = item.get("side", "")  # Buy=short清算, Sell=long清算
-                price = float(item.get("price", 0) or 0)
-                qty   = float(item.get("leavesQty", 0) or 0)  # linear: BTC単位
-                if price > 0 and qty > 0:
+                side      = item.get("side", "")  # Buy=short清算, Sell=long清算
+                price     = float(item.get("price", 0) or 0)
+                qty_usd   = float(item.get("leavesQty", 0) or 0)  # USD notional
+                if price > 0 and qty_usd > 0:
+                    qty_btc  = round(qty_usd / price, 4)
                     liq_side = "short" if side == "Buy" else "long"
                     if side == "Buy":
-                        short_btc += qty
+                        short_btc += qty_btc
                     else:
-                        long_btc  += qty
+                        long_btc  += qty_btc
                     events.append({"exchange": "bitmex", "price": round(price, 2),
-                                   "side": liq_side, "size_btc": round(qty, 4), "time_ms": 0})
+                                   "side": liq_side, "size_btc": qty_btc, "time_ms": 0})
         except Exception as e:
             logger.warning("bitmex liq: %s", e)
     return long_btc, short_btc, len(events), events
@@ -1385,11 +1393,17 @@ async def fetch_liq_heatmap(session: aiohttp.ClientSession, btc_price: float) ->
             pass
 
     # --- L/S ratio から偏り係数を計算 ---
+    # globalLongShortAccountRatio returns longAccount/shortAccount as RATIOS (0.0-1.0)
     long_bias = 0.5   # default: 50/50
     bn_ls_d = await bn_ls_task
     if bn_ls_d and isinstance(bn_ls_d, list) and bn_ls_d:
         try:
-            long_bias = float(bn_ls_d[0].get("longAccount", 0.5))
+            row = bn_ls_d[0]
+            la = float(row.get("longAccount", 0) or 0)
+            sa = float(row.get("shortAccount", 0) or 0)
+            total = la + sa
+            if total > 0:
+                long_bias = la / total  # 0.0 ~ 1.0
         except Exception:
             pass
     short_bias = 1.0 - long_bias
