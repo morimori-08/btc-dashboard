@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,19 +10,25 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const hours = Math.min(parseInt(searchParams.get('hours') || '24'), 168)
   const since = new Date(Date.now() - hours * 3600 * 1000).toISOString()
+  const limit = hours * 12
 
-  const supabase = createClient(url, key)
-  const { data, error } = await supabase
-    .from('snapshots')
-    .select('data, timestamp')
-    .gte('timestamp', since)
-    .order('timestamp', { ascending: false })
-    .limit(hours * 12)
+  const res = await fetch(
+    `${url}/rest/v1/snapshots?select=data,timestamp&order=id.desc&limit=${limit}&timestamp=gte.${since}`,
+    {
+      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
+      cache: 'no-store',
+    }
+  )
 
-  if (error) return NextResponse.json([])
+  if (!res.ok) return NextResponse.json([])
 
-  return NextResponse.json((data || []).map(row => ({
+  const rows = await res.json()
+  const result = rows.map((row: any) => ({
     timestamp: row.timestamp,
     ...(typeof row.data === 'string' ? JSON.parse(row.data) : row.data)
-  })))
+  }))
+
+  return NextResponse.json(result, {
+    headers: { 'Cache-Control': 'no-store, max-age=0' }
+  })
 }
