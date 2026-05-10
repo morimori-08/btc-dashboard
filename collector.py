@@ -1018,14 +1018,87 @@ async def _fetch_okx_liquidations(session) -> tuple:
     return long_liq, short_liq
 
 
-async def _fetch_bitmex_liq_count(session) -> int:
-    d = await _get(
-        session,
-        "https://www.bitmex.com/api/v1/liquidation",
-        params={"symbol": "XBTUSDT", "count": "100", "reverse": "true"})
+async def _fetch_bitmex_liquidations(session) -> tuple:
+    """BitMEX BTC/USDT 清算 → (long_btc, short_btc, count, events)"""
+    long_btc = 0.0
+    short_btc = 0.0
+    events = []
+    d = await _get(session, "https://www.bitmex.com/api/v1/liquidation",
+                   params={"symbol": "XBTUSDT", "count": "50", "reverse": "true"})
     if d and isinstance(d, list):
-        return len(d)
-    return 0
+        try:
+            for item in d:
+                side  = item.get("side", "")  # Buy=short清算, Sell=long清算
+                price = float(item.get("price", 0) or 0)
+                qty   = float(item.get("leavesQty", 0) or 0)  # linear: BTC単位
+                if price > 0 and qty > 0:
+                    liq_side = "short" if side == "Buy" else "long"
+                    if side == "Buy":
+                        short_btc += qty
+                    else:
+                        long_btc  += qty
+                    events.append({"exchange": "bitmex", "price": round(price, 2),
+                                   "side": liq_side, "size_btc": round(qty, 4), "time_ms": 0})
+        except Exception as e:
+            logger.warning("bitmex liq: %s", e)
+    return long_btc, short_btc, len(events), events
+
+
+async def _fetch_binance_liquidations(session) -> tuple:
+    """Binance BTC/USDT 強制清算 → (long_btc, short_btc, events)"""
+    long_btc = 0.0
+    short_btc = 0.0
+    events = []
+    d = await _get(session, "https://fapi.binance.com/fapi/v1/forceOrders",
+                   params={"symbol": "BTCUSDT", "autoCloseType": "LIQUIDATION", "limit": "50"})
+    if not d or not isinstance(d, list):
+        return long_btc, short_btc, events
+    try:
+        for item in d:
+            side  = item.get("side", "")  # BUY=short清算, SELL=long清算
+            price = float(item.get("avgPrice", 0) or 0)
+            qty   = float(item.get("origQty",  0) or 0)
+            ts    = int(item.get("time", 0) or 0)
+            if price > 0 and qty > 0:
+                liq_side = "short" if side == "BUY" else "long"
+                if side == "BUY":
+                    short_btc += qty
+                else:
+                    long_btc  += qty
+                events.append({"exchange": "binance", "price": round(price, 2),
+                               "side": liq_side, "size_btc": round(qty, 4), "time_ms": ts})
+    except Exception as e:
+        logger.warning("binance liq: %s", e)
+    return long_btc, short_btc, events
+
+
+async def _fetch_bybit_liquidations(session) -> tuple:
+    """Bybit BTC/USDT 清算 → (long_btc, short_btc, events)"""
+    long_btc = 0.0
+    short_btc = 0.0
+    events = []
+    d = await _get(session, "https://api.bybit.com/v5/market/liquidation",
+                   params={"category": "linear", "symbol": "BTCUSDT", "limit": "50"})
+    if not d:
+        return long_btc, short_btc, events
+    try:
+        items = d.get("result", {}).get("list", [])
+        for item in items:
+            side  = item.get("side", "")  # Buy=short清算, Sell=long清算
+            price = float(item.get("price", 0) or 0)
+            qty   = float(item.get("qty",   0) or 0)
+            ts    = int(item.get("time",    0) or 0)
+            if price > 0 and qty > 0:
+                liq_side = "short" if side == "Buy" else "long"
+                if side == "Buy":
+                    short_btc += qty
+                else:
+                    long_btc  += qty
+                events.append({"exchange": "bybit", "price": round(price, 2),
+                               "side": liq_side, "size_btc": round(qty, 4), "time_ms": ts})
+    except Exception as e:
+        logger.warning("bybit liq: %s", e)
+    return long_btc, short_btc, events
 
 
 async def _fetch_bn_ls(session, coins=BN_LS_COINS):
@@ -1538,7 +1611,9 @@ async def collect_all() -> dict:
         exflow_task       = asyncio.create_task(_fetch_exchange_flow(session))
         poly_task         = asyncio.create_task(_fetch_polymarket(session))
         okx_liq_task      = asyncio.create_task(_fetch_okx_liquidations(session))
-        bitmex_liq_task   = asyncio.create_task(_fetch_bitmex_liq_count(session))
+        bitmex_liq_task   = asyncio.create_task(_fetch_bitmex_liquidations(session))
+        binance_liq_task  = asyncio.create_task(_fetch_binance_liquidations(session))
+        bybit_liq_task    = asyncio.create_task(_fetch_bybit_liquidations(session))
         bn_ls_task        = asyncio.create_task(_fetch_bn_ls(session))
         technical_task    = asyncio.create_task(fetch_technical(session))
         liq_heatmap_task  = asyncio.create_task(fetch_liq_heatmap(session, _price_for_heatmap))
@@ -1557,8 +1632,10 @@ async def collect_all() -> dict:
         etf_flow       = await etf_task
         exchange_flow  = await exflow_task
         polymarket     = await poly_task
-        long_liq, short_liq = await okx_liq_task
-        bitmex_liq_count    = await bitmex_liq_task
+        long_liq, short_liq       = await okx_liq_task
+        bm_long, bm_short, bm_cnt, bm_events = await bitmex_liq_task
+        bn_long, bn_short, bn_events          = await binance_liq_task
+        bb_long, bb_short, bb_events          = await bybit_liq_task
         bn_taker, bn_acct, bn_top = await bn_ls_task
         technical_data = await technical_task
         liq_heatmap_data = await liq_heatmap_task
@@ -1605,14 +1682,27 @@ async def collect_all() -> dict:
         "exchange_flow":        exchange_flow,
         "polymarket":           polymarket,
         "liquidations": {
-            "okx_long_liq_btc":    round(long_liq, 4),
-            "okx_short_liq_btc":   round(short_liq, 4),
-            "bitmex_liq_count_1h": bitmex_liq_count,
-            "bn_taker_ls":         bn_taker,
-            "bn_account_ls":       bn_acct,
-            "bn_top_ls":           bn_top,
+            "okx_long_liq_btc":      round(long_liq, 4),
+            "okx_short_liq_btc":     round(short_liq, 4),
+            "binance_long_liq_btc":  round(bn_long,   4),
+            "binance_short_liq_btc": round(bn_short,  4),
+            "bybit_long_liq_btc":    round(bb_long,   4),
+            "bybit_short_liq_btc":   round(bb_short,  4),
+            "bitmex_long_liq_btc":   round(bm_long,   4),
+            "bitmex_short_liq_btc":  round(bm_short,  4),
+            "bitmex_liq_count_1h":   bm_cnt,
+            "bn_taker_ls":           bn_taker,
+            "bn_account_ls":         bn_acct,
+            "bn_top_ls":             bn_top,
         },
         "technical":    technical_data,
-        "liq_heatmap":  liq_heatmap_data,
+        "liq_heatmap":  {
+            **liq_heatmap_data,
+            # 全取引所の清算イベントをマージ (清算MAPオーバーレイ用)
+            "all_exchange_liq": (
+                [{"exchange": "okx", **e} for e in liq_heatmap_data.get("okx_recent_liq", [])]
+                + bn_events + bb_events + bm_events
+            )[:100],
+        },
         "changes":      changes_data,
     }
