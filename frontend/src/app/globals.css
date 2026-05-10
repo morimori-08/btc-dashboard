@@ -177,11 +177,72 @@ body {
 .fr-mid-neg    { background: rgba(0,212,255,0.12) !important; color: #00aadd !important; }
 .fr-strong-neg { background: rgba(0,212,255,0.25) !important; color: #00d4ff !important; }
 
-/* ===== モバイル ===== */
+/* ===== タブ アイコン/ラベル ===== */
+.tab-icon  { display: inline; }
+.tab-label { display: inline; }   /* PCではテキストも表示 */
+
+/* ===== モバイル最適化 ===== */
+
+/* タブレット (〜900px) */
+@media (max-width: 900px) {
+  .data-table { font-size: 0.75rem; }
+  .data-table th, .data-table td { padding: 6px 8px; }
+}
+
+/* スマホ横 / タブレット縦 (〜768px) */
 @media (max-width: 768px) {
   body { font-size: 14px; }
-  .tab-btn { font-size: 0.72rem; padding: 7px 10px; }
+
+  /* ヘッダー */
+  .btc-header-price { font-size: 1.3rem !important; }
+  .btc-header-inner { flex-wrap: wrap; gap: 8px !important; }
+
+  /* タブバー: スクロール可・アイコンのみ表示でコンパクトに */
+  .tab-bar { padding: 3px; gap: 2px; }
+  .tab-btn {
+    font-size: 0.68rem;
+    padding: 7px 9px;
+    border-radius: 7px;
+  }
+  .tab-btn .tab-label { display: none; }       /* テキスト非表示 */
+  .tab-btn .tab-icon  { display: inline; }      /* アイコンのみ */
+
+  /* カード */
   .glass-card { border-radius: 12px; }
+
+  /* テーブル横スクロール */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .data-table { font-size: 0.72rem; min-width: 480px; }
+  .data-table th, .data-table td { padding: 5px 7px; }
+
+  /* メトリクスカード */
+  .metric-value { font-size: 1.15rem !important; }
+  .metric-label { font-size: 0.62rem; }
+
+  /* セクションヘッダー */
+  .section-header-title { font-size: 0.78rem !important; }
+}
+
+/* スマホ縦 (〜480px) */
+@media (max-width: 480px) {
+  /* タブバー: アイコン + 短縮ラベル */
+  .tab-btn { padding: 6px 8px; font-size: 0.62rem; }
+
+  /* カード padding 縮小 */
+  .glass-card { padding: 10px 12px !important; border-radius: 10px; }
+
+  /* テーブルは横スクロール前提 */
+  .data-table { font-size: 0.68rem; min-width: 440px; }
+
+  /* グリッドは単列 */
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+
+  /* AI分析パネル */
+  .analysis-grid { grid-template-columns: 1fr !important; }
+
+  /* SVGチャートは拡大スクロール */
+  .chart-svg-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .chart-svg-wrap svg { min-width: 480px; }
 }
 
 /* ===== アニメーション付き数値 ===== */

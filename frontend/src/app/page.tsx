@@ -967,7 +967,7 @@ function TabFlow({ d }: { d: any }) {
 
   return (
     <div className="tab-content">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 16, marginBottom: 16 }}>
         {/* ETF Flow */}
         <div>
           <SectionHeader title="ETF Custody Flow" sub="機関投資家フロー" />
@@ -1470,6 +1470,7 @@ function CandleChart({ candles, tf }: { candles: Candle[]; tf: string }) {
   }
 
   return (
+    <div className="chart-svg-wrap">
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
       {/* grid lines */}
       {priceLabels.map((p, i) => {
@@ -1511,6 +1512,7 @@ function CandleChart({ candles, tf }: { candles: Candle[]; tf: string }) {
         </g>
       ))}
     </svg>
+    </div>
   )
 }
 
@@ -1766,6 +1768,7 @@ function LiqMapChart({ lh, price }: { lh: any; price: number }) {
         {loading && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', alignSelf: 'center' }}>読み込み中...</span>}
       </div>
 
+      <div className="chart-svg-wrap">
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
         {/* background clip region */}
         <defs>
@@ -1883,6 +1886,7 @@ function LiqMapChart({ lh, price }: { lh: any; price: number }) {
           ))}
         </g>
       </svg>
+      </div>
     </div>
   )
 }
@@ -2118,16 +2122,17 @@ export default function Page() {
   const tech = d.technical || {}
 
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 12px 40px', minHeight: '100vh' }}>
+    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 8px 40px', minHeight: '100vh' }}>
 
       {/* ===== ヘッダー ===== */}
-      <header style={{
+      <header className="btc-header-inner" style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '12px 0',
-        marginBottom: 12,
+        padding: '10px 4px',
+        marginBottom: 10,
         borderBottom: '1px solid rgba(247,147,26,0.1)',
+        gap: 8,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
@@ -2196,7 +2201,8 @@ export default function Page() {
             className={`tab-btn ${tab === i ? 'active' : ''}`}
             onClick={() => setTab(i)}
           >
-            {t.icon} {t.label}
+            <span className="tab-icon">{t.icon}</span>
+            <span className="tab-label"> {t.label}</span>
           </button>
         ))}
       </nav>
