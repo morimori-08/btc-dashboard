@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/dashboard.db
+data/test_dashboard.db
+node_modules/
+.next/
+.gstack/
+*.log
