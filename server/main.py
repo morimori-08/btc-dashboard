@@ -317,3 +317,31 @@ async def changes():
         "btc_price": data.get("btc_price"),
         "changes": data.get("changes", {}),
     }
+
+
+@app.get("/api/paper-trades")
+async def paper_trades(limit: int = 50):
+    """AIペーパートレード履歴を返す（シグナル + トレード結合）"""
+    import sqlite3 as _sqlite3
+    db_path = os.path.expanduser("~/Desktop/TradingAgents/paper_trade.db")
+    if not os.path.exists(db_path):
+        return {"trades": [], "total": 0}
+    try:
+        conn = _sqlite3.connect(db_path)
+        conn.row_factory = _sqlite3.Row
+        rows = conn.execute("""
+            SELECT
+                s.id, s.ts, s.signal, s.btc_price, s.reasoning,
+                t.side, t.size_btc, t.entry_price, t.bitget_order_id, t.status
+            FROM signals s
+            LEFT JOIN trades t ON t.signal_id = s.id
+            ORDER BY s.id DESC
+            LIMIT ?
+        """, (limit,)).fetchall()
+        conn.close()
+        return {
+            "trades": [dict(r) for r in rows],
+            "total": len(rows),
+        }
+    except Exception as e:
+        return {"error": str(e), "trades": []}
