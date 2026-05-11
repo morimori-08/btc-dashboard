@@ -17,6 +17,7 @@ const TABS = [
   { id: 'tech',        label: 'テクニカル', icon: '◈' },
   { id: 'liqmap',      label: '清算MAP',    icon: '◉' },
   { id: 'changes',     label: '変化率',     icon: '◭' },
+  { id: 'ai_trade',   label: 'AIトレード', icon: '◎' },
 ]
 
 const TOP15 = ['BTC','ETH','XRP','BNB','SOL','TRX','DOGE','HYPE','ADA','LINK','TON','LTC','AVAX','DOT','UNI']
@@ -2095,6 +2096,90 @@ function TabChanges({ d }: { d: any }) {
 }
 
 // ============================================================
+// AIトレードタブ
+// ============================================================
+
+function AiTradeTab() {
+  const [trades, setTrades] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/paper-trades')
+      .then(r => r.json())
+      .then(d => { setTrades(d.trades || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const currentPosition = trades.find(t => t.side && t.status === 'open')
+  const signals = trades.slice(0, 20)
+
+  return (
+    <div style={{ padding: '0 4px' }}>
+      <GlassCard style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>現在ポジション</div>
+        {currentPosition ? (
+          <div style={{
+            fontSize: 24, fontWeight: 700,
+            color: currentPosition.side === 'LONG' ? '#00d4a0' : currentPosition.side === 'SHORT' ? '#ff6b6b' : '#888'
+          }}>
+            {currentPosition.side} {currentPosition.size_btc} BTC
+            <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginLeft: 12 }}>
+              @ ${Number(currentPosition.entry_price).toLocaleString()}
+            </span>
+          </div>
+        ) : (
+          <div style={{ fontSize: 18, color: '#888' }}>FLAT（ポジションなし）</div>
+        )}
+      </GlassCard>
+
+      <GlassCard>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 12 }}>シグナル履歴</div>
+        {loading ? (
+          <div style={{ color: '#888' }}>読み込み中...</div>
+        ) : signals.length === 0 ? (
+          <div style={{ color: '#888' }}>まだデータがありません。paper_trader.py を実行してください。</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>日時</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>シグナル</th>
+                <th style={{ textAlign: 'right', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>価格</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>根拠</th>
+              </tr>
+            </thead>
+            <tbody>
+              {signals.map((t, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.6)' }}>
+                    {t.ts ? t.ts.slice(0, 16).replace('T', ' ') : '—'}
+                  </td>
+                  <td style={{ padding: '6px 8px' }}>
+                    <span style={{
+                      color: ['Buy','Overweight'].includes(t.signal) ? '#00d4a0'
+                           : ['Sell','Underweight'].includes(t.signal) ? '#ff6b6b' : '#888',
+                      fontWeight: 600,
+                    }}>
+                      {t.signal}
+                    </span>
+                  </td>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#f7931a' }}>
+                    ${Number(t.btc_price || 0).toLocaleString()}
+                  </td>
+                  <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.5)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {t.reasoning ? t.reasoning.slice(0, 80) + '…' : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </GlassCard>
+    </div>
+  )
+}
+
+// ============================================================
 // メインページ
 // ============================================================
 
@@ -2218,6 +2303,7 @@ export default function Page() {
       {tab === 7 && <TabTech      d={d} />}
       {tab === 8 && <TabLiqMap    d={d} />}
       {tab === 9 && <TabChanges   d={d} />}
+      {tab === 10 && <AiTradeTab />}
     </div>
   )
 }
