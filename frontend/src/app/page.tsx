@@ -2102,6 +2102,7 @@ function TabChanges({ d }: { d: any }) {
 function AiTradeTab() {
   const [trades, setTrades] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState<number | null>(null)
 
   useEffect(() => {
     fetch('/api/paper-trades')
@@ -2111,17 +2112,18 @@ function AiTradeTab() {
   }, [])
 
   const currentPosition = trades.find(t => t.side && t.status === 'open')
-  const signals = trades.slice(0, 20)
+  const signals = trades.slice(0, 30)
+
+  const sigColor = (s: string) =>
+    ['Buy','Overweight'].includes(s) ? '#00d4a0' :
+    ['Sell','Underweight'].includes(s) ? '#ff6b6b' : '#888'
 
   return (
     <div style={{ padding: '0 4px' }}>
       <GlassCard style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>現在ポジション</div>
         {currentPosition ? (
-          <div style={{
-            fontSize: 24, fontWeight: 700,
-            color: currentPosition.side === 'LONG' ? '#00d4a0' : currentPosition.side === 'SHORT' ? '#ff6b6b' : '#888'
-          }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: currentPosition.side === 'LONG' ? '#00d4a0' : '#ff6b6b' }}>
             {currentPosition.side} {currentPosition.size_btc} BTC
             <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginLeft: 12 }}>
               @ ${Number(currentPosition.entry_price).toLocaleString()}
@@ -2133,43 +2135,65 @@ function AiTradeTab() {
       </GlassCard>
 
       <GlassCard>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 12 }}>シグナル履歴</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 12 }}>
+          AIシグナル履歴（行クリックで詳細表示）
+        </div>
         {loading ? (
           <div style={{ color: '#888' }}>読み込み中...</div>
         ) : signals.length === 0 ? (
-          <div style={{ color: '#888' }}>まだデータがありません。paper_trader.py を実行してください。</div>
+          <div style={{ color: '#888' }}>まだデータがありません。</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>日時</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>分析日</th>
                 <th style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>シグナル</th>
                 <th style={{ textAlign: 'right', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>価格</th>
-                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>根拠</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>最終判断サマリー</th>
               </tr>
             </thead>
             <tbody>
               {signals.map((t, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.6)' }}>
-                    {t.ts ? t.ts.slice(0, 16).replace('T', ' ') : '—'}
-                  </td>
-                  <td style={{ padding: '6px 8px' }}>
-                    <span style={{
-                      color: ['Buy','Overweight'].includes(t.signal) ? '#00d4a0'
-                           : ['Sell','Underweight'].includes(t.signal) ? '#ff6b6b' : '#888',
-                      fontWeight: 600,
-                    }}>
-                      {t.signal}
-                    </span>
-                  </td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#f7931a' }}>
-                    ${Number(t.btc_price || 0).toLocaleString()}
-                  </td>
-                  <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.5)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {t.reasoning ? t.reasoning.slice(0, 80) + '…' : '—'}
-                  </td>
-                </tr>
+                <>
+                  <tr
+                    key={i}
+                    onClick={() => setExpanded(expanded === i ? null : i)}
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }}
+                  >
+                    <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.6)' }}>
+                      {t.trade_date || (t.ts ? t.ts.slice(0, 10) : '—')}
+                    </td>
+                    <td style={{ padding: '6px 8px' }}>
+                      <span style={{ color: sigColor(t.signal), fontWeight: 600 }}>{t.signal}</span>
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: '#f7931a' }}>
+                      {t.btc_price ? `$${Number(t.btc_price).toLocaleString()}` : '—'}
+                    </td>
+                    <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.5)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {(t.final_trade_decision || '').slice(0, 80)}{t.final_trade_decision?.length > 80 ? '…' : ''}
+                    </td>
+                  </tr>
+                  {expanded === i && (
+                    <tr key={`${i}-detail`}>
+                      <td colSpan={4} style={{ padding: '12px 8px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                        {[
+                          { label: 'デリバティブ分析', key: 'market_report' },
+                          { label: 'マクロ・センチメント', key: 'sentiment_report' },
+                          { label: 'テクニカル', key: 'news_report' },
+                          { label: '投資計画', key: 'investment_plan' },
+                          { label: '最終判断', key: 'final_trade_decision' },
+                        ].map(({ label, key }) => t[key] ? (
+                          <div key={key} style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>{label}</div>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>
+                              {t[key].slice(0, 600)}{t[key].length > 600 ? '…' : ''}
+                            </div>
+                          </div>
+                        ) : null)}
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>
