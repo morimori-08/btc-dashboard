@@ -2146,122 +2146,112 @@ function AiTradeTab() {
         )}
       </GlassCard>
 
-      <GlassCard>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 12 }}>
-          AIシグナル履歴（行クリックで詳細表示）
-        </div>
-        {loading ? (
-          <div style={{ color: '#888' }}>読み込み中...</div>
-        ) : signals.length === 0 ? (
-          <div style={{ color: '#888' }}>まだデータがありません。</div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>分析日</th>
-                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>シグナル</th>
-                <th style={{ textAlign: 'right', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>価格</th>
-                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>最終判断サマリー</th>
-              </tr>
-            </thead>
-            <tbody>
-              {signals.map((t, i) => (
-                <>
-                  <tr
-                    key={i}
-                    onClick={() => setExpanded(expanded === i ? null : i)}
-                    style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }}
-                  >
-                    <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.6)' }}>
-                      {t.trade_date || (t.ts ? t.ts.slice(0, 10) : '—')}
-                    </td>
-                    <td style={{ padding: '6px 8px' }}>
-                      <span style={{ color: sigColor(t.signal), fontWeight: 600 }}>{t.signal}</span>
-                    </td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right', color: '#f7931a' }}>
-                      {t.btc_price ? `$${Number(t.btc_price).toLocaleString()}` : '—'}
-                    </td>
-                    <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.5)', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {stripMd(t.final_trade_decision || '').slice(0, 100)}{stripMd(t.final_trade_decision || '').length > 100 ? '…' : ''}
-                    </td>
-                  </tr>
-                  {expanded === i && (
-                    <tr key={`${i}-detail`}>
-                      <td colSpan={4} style={{ padding: '12px 8px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                        {[
-                          { label: '🔬 デリバティブ分析', key: 'market_report' },
-                          { label: '🌍 マクロ・センチメント', key: 'sentiment_report' },
-                          { label: '📈 テクニカル', key: 'news_report' },
-                          { label: '📋 投資計画（Research Manager）', key: 'investment_plan' },
-                          { label: '💼 最終判断（Portfolio Manager）', key: 'final_trade_decision' },
-                        ].map(({ label, key }) => t[key] ? (
-                          <div key={key} style={{ marginBottom: 14 }}>
-                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6, fontWeight: 600, letterSpacing: '0.5px' }}>{label}</div>
-                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', whiteSpace: 'pre-wrap', lineHeight: 1.7, maxHeight: 200, overflow: 'auto', background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '8px 10px' }}>
-                              {stripMd(t[key])}
-                            </div>
-                          </div>
-                        ) : null)}
-                        {/* Bull vs Bear ディベート */}
-                        {t.investment_debate && (() => {
-                          try {
-                            const d = typeof t.investment_debate === 'string' ? JSON.parse(t.investment_debate) : t.investment_debate
-                            const bull = d.bull_history || ''
-                            const bear = d.bear_history || ''
-                            return (
-                              <div style={{ marginBottom: 10 }}>
-                                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>🐂🐻 Bull vs Bear ディベート</div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                                  {bull && <div style={{ background: 'rgba(0,212,160,0.06)', borderRadius: 6, padding: 10 }}>
-                                    <div style={{ fontSize: 10, color: '#00d4a0', marginBottom: 6, fontWeight: 700 }}>🐂 BULL</div>
-                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 220, overflow: 'auto' }}>{stripMd(bull)}</div>
-                                  </div>}
-                                  {bear && <div style={{ background: 'rgba(255,107,107,0.06)', borderRadius: 6, padding: 10 }}>
-                                    <div style={{ fontSize: 10, color: '#ff6b6b', marginBottom: 6, fontWeight: 700 }}>🐻 BEAR</div>
-                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 220, overflow: 'auto' }}>{stripMd(bear)}</div>
-                                  </div>}
-                                </div>
-                              </div>
-                            )
-                          } catch { return null }
-                        })()}
-                        {/* リスク管理ディベート */}
-                        {t.risk_debate && (() => {
-                          try {
-                            const d = typeof t.risk_debate === 'string' ? JSON.parse(t.risk_debate) : t.risk_debate
-                            const agg = d.aggressive_history || ''
-                            const con = d.conservative_history || ''
-                            const neu = d.neutral_history || ''
-                            return (
-                              <div style={{ marginBottom: 10 }}>
-                                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>⚖️ リスク管理ディベート</div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                                  {agg && <div style={{ background: 'rgba(247,147,26,0.06)', borderRadius: 6, padding: 10 }}>
-                                    <div style={{ fontSize: 10, color: '#f7931a', marginBottom: 6, fontWeight: 700 }}>⚡ AGGRESSIVE</div>
-                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 180, overflow: 'auto' }}>{stripMd(agg)}</div>
-                                  </div>}
-                                  {neu && <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: 10 }}>
-                                    <div style={{ fontSize: 10, color: '#888', marginBottom: 6, fontWeight: 700 }}>⚖️ NEUTRAL</div>
-                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 180, overflow: 'auto' }}>{stripMd(neu)}</div>
-                                  </div>}
-                                  {con && <div style={{ background: 'rgba(100,200,255,0.06)', borderRadius: 6, padding: 10 }}>
-                                    <div style={{ fontSize: 10, color: '#64c8ff', marginBottom: 6, fontWeight: 700 }}>🛡️ CONSERVATIVE</div>
-                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 180, overflow: 'auto' }}>{stripMd(con)}</div>
-                                  </div>}
-                                </div>
-                              </div>
-                            )
-                          } catch { return null }
-                        })()}
-                      </td>
-                    </tr>
-                  )}
-                </>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </GlassCard>
+      {loading ? (
+        <GlassCard><div style={{ color: '#888' }}>読み込み中...</div></GlassCard>
+      ) : signals.length === 0 ? (
+        <GlassCard><div style={{ color: '#888' }}>まだデータがありません。</div></GlassCard>
+      ) : signals.map((t, i) => {
+        let debate: any = null
+        let risk: any = null
+        try { debate = t.investment_debate ? (typeof t.investment_debate === 'string' ? JSON.parse(t.investment_debate) : t.investment_debate) : null } catch {}
+        try { risk = t.risk_debate ? (typeof t.risk_debate === 'string' ? JSON.parse(t.risk_debate) : t.risk_debate) : null } catch {}
+
+        return (
+          <GlassCard key={i} style={{ marginBottom: 16 }}>
+            {/* ヘッダー */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <span style={{ fontSize: 22, fontWeight: 800, color: sigColor(t.signal) }}>{t.signal}</span>
+              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>{t.trade_date || t.ts?.slice(0,10)}</span>
+              {t.btc_price && <span style={{ fontSize: 13, color: '#f7931a', marginLeft: 'auto' }}>${Number(t.btc_price).toLocaleString()}</span>}
+            </div>
+
+            {/* 最終判断 */}
+            {t.final_trade_decision && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6, fontWeight: 600 }}>💼 最終判断（Portfolio Manager）</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', whiteSpace: 'pre-wrap', lineHeight: 1.8, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '10px 12px' }}>
+                  {stripMd(t.final_trade_decision)}
+                </div>
+              </div>
+            )}
+
+            {/* 各アナリストレポート（クリックで展開） */}
+            <div
+              onClick={() => setExpanded(expanded === i ? null : i)}
+              style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: expanded === i ? 12 : 0, userSelect: 'none' }}
+            >
+              {expanded === i ? '▲ アナリストレポート・ディベートを閉じる' : '▼ アナリストレポート・ディベートを見る'}
+            </div>
+
+            {expanded === i && (
+              <div>
+                {/* アナリストレポート */}
+                {[
+                  { label: '🔬 デリバティブ分析', key: 'market_report' },
+                  { label: '🌍 マクロ・センチメント', key: 'sentiment_report' },
+                  { label: '📈 テクニカル', key: 'news_report' },
+                  { label: '📋 投資計画（Research Manager）', key: 'investment_plan' },
+                ].map(({ label, key }) => t[key] ? (
+                  <div key={key} style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6, fontWeight: 600 }}>{label}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', whiteSpace: 'pre-wrap', lineHeight: 1.7, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '8px 10px' }}>
+                      {stripMd(t[key])}
+                    </div>
+                  </div>
+                ) : null)}
+
+                {/* Bull vs Bear ディベート */}
+                {debate && (debate.bull_history || debate.bear_history) && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8, fontWeight: 600 }}>🐂🐻 Bull vs Bear ディベート</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {debate.bull_history && (
+                        <div style={{ background: 'rgba(0,212,160,0.06)', borderRadius: 6, padding: 10 }}>
+                          <div style={{ fontSize: 10, color: '#00d4a0', marginBottom: 6, fontWeight: 700 }}>🐂 BULL</div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{stripMd(debate.bull_history)}</div>
+                        </div>
+                      )}
+                      {debate.bear_history && (
+                        <div style={{ background: 'rgba(255,107,107,0.06)', borderRadius: 6, padding: 10 }}>
+                          <div style={{ fontSize: 10, color: '#ff6b6b', marginBottom: 6, fontWeight: 700 }}>🐻 BEAR</div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{stripMd(debate.bear_history)}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* リスク管理ディベート */}
+                {risk && (risk.aggressive_history || risk.neutral_history || risk.conservative_history) && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8, fontWeight: 600 }}>⚖️ リスク管理ディベート</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                      {risk.aggressive_history && (
+                        <div style={{ background: 'rgba(247,147,26,0.06)', borderRadius: 6, padding: 10 }}>
+                          <div style={{ fontSize: 10, color: '#f7931a', marginBottom: 6, fontWeight: 700 }}>⚡ AGGRESSIVE</div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{stripMd(risk.aggressive_history)}</div>
+                        </div>
+                      )}
+                      {risk.neutral_history && (
+                        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: 10 }}>
+                          <div style={{ fontSize: 10, color: '#888', marginBottom: 6, fontWeight: 700 }}>⚖️ NEUTRAL</div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{stripMd(risk.neutral_history)}</div>
+                        </div>
+                      )}
+                      {risk.conservative_history && (
+                        <div style={{ background: 'rgba(100,200,255,0.06)', borderRadius: 6, padding: 10 }}>
+                          <div style={{ fontSize: 10, color: '#64c8ff', marginBottom: 6, fontWeight: 700 }}>🛡️ CONSERVATIVE</div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{stripMd(risk.conservative_history)}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </GlassCard>
+        )
+      })}
     </div>
   )
 }
