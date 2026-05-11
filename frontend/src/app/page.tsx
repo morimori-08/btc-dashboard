@@ -2099,6 +2099,18 @@ function TabChanges({ d }: { d: any }) {
 // AIトレードタブ
 // ============================================================
 
+// Markdownの装飾記号を除去して読みやすくする
+function stripMd(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')   // **bold** → bold
+    .replace(/\*([^*]+)\*/g, '$1')         // *italic* → italic
+    .replace(/#{1,6}\s*/g, '')             // ### heading → heading
+    .replace(/`([^`]+)`/g, '$1')           // `code` → code
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [text](url) → text
+    .replace(/\n{3,}/g, '\n\n')            // 3連続改行→2つに
+    .trim()
+}
+
 function AiTradeTab() {
   const [trades, setTrades] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -2169,8 +2181,8 @@ function AiTradeTab() {
                     <td style={{ padding: '6px 8px', textAlign: 'right', color: '#f7931a' }}>
                       {t.btc_price ? `$${Number(t.btc_price).toLocaleString()}` : '—'}
                     </td>
-                    <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.5)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {(t.final_trade_decision || '').slice(0, 80)}{t.final_trade_decision?.length > 80 ? '…' : ''}
+                    <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.5)', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {stripMd(t.final_trade_decision || '').slice(0, 100)}{stripMd(t.final_trade_decision || '').length > 100 ? '…' : ''}
                     </td>
                   </tr>
                   {expanded === i && (
@@ -2183,10 +2195,10 @@ function AiTradeTab() {
                           { label: '📋 投資計画（Research Manager）', key: 'investment_plan' },
                           { label: '💼 最終判断（Portfolio Manager）', key: 'final_trade_decision' },
                         ].map(({ label, key }) => t[key] ? (
-                          <div key={key} style={{ marginBottom: 10 }}>
-                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>{label}</div>
-                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>
-                              {t[key].slice(0, 600)}{t[key].length > 600 ? '…' : ''}
+                          <div key={key} style={{ marginBottom: 14 }}>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6, fontWeight: 600, letterSpacing: '0.5px' }}>{label}</div>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', whiteSpace: 'pre-wrap', lineHeight: 1.7, maxHeight: 200, overflow: 'auto', background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '8px 10px' }}>
+                              {stripMd(t[key])}
                             </div>
                           </div>
                         ) : null)}
@@ -2200,13 +2212,13 @@ function AiTradeTab() {
                               <div style={{ marginBottom: 10 }}>
                                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>🐂🐻 Bull vs Bear ディベート</div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                                  {bull && <div style={{ background: 'rgba(0,212,160,0.06)', borderRadius: 6, padding: 8 }}>
-                                    <div style={{ fontSize: 10, color: '#00d4a0', marginBottom: 4 }}>BULL</div>
-                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto' }}>{bull.slice(0, 500)}…</div>
+                                  {bull && <div style={{ background: 'rgba(0,212,160,0.06)', borderRadius: 6, padding: 10 }}>
+                                    <div style={{ fontSize: 10, color: '#00d4a0', marginBottom: 6, fontWeight: 700 }}>🐂 BULL</div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 220, overflow: 'auto' }}>{stripMd(bull)}</div>
                                   </div>}
-                                  {bear && <div style={{ background: 'rgba(255,107,107,0.06)', borderRadius: 6, padding: 8 }}>
-                                    <div style={{ fontSize: 10, color: '#ff6b6b', marginBottom: 4 }}>BEAR</div>
-                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto' }}>{bear.slice(0, 500)}…</div>
+                                  {bear && <div style={{ background: 'rgba(255,107,107,0.06)', borderRadius: 6, padding: 10 }}>
+                                    <div style={{ fontSize: 10, color: '#ff6b6b', marginBottom: 6, fontWeight: 700 }}>🐻 BEAR</div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 220, overflow: 'auto' }}>{stripMd(bear)}</div>
                                   </div>}
                                 </div>
                               </div>
@@ -2224,17 +2236,17 @@ function AiTradeTab() {
                               <div style={{ marginBottom: 10 }}>
                                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>⚖️ リスク管理ディベート</div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                                  {agg && <div style={{ background: 'rgba(247,147,26,0.06)', borderRadius: 6, padding: 8 }}>
-                                    <div style={{ fontSize: 10, color: '#f7931a', marginBottom: 4 }}>AGGRESSIVE</div>
-                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>{agg.slice(0, 300)}…</div>
+                                  {agg && <div style={{ background: 'rgba(247,147,26,0.06)', borderRadius: 6, padding: 10 }}>
+                                    <div style={{ fontSize: 10, color: '#f7931a', marginBottom: 6, fontWeight: 700 }}>⚡ AGGRESSIVE</div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 180, overflow: 'auto' }}>{stripMd(agg)}</div>
                                   </div>}
-                                  {neu && <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: 8 }}>
-                                    <div style={{ fontSize: 10, color: '#888', marginBottom: 4 }}>NEUTRAL</div>
-                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>{neu.slice(0, 300)}…</div>
+                                  {neu && <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: 10 }}>
+                                    <div style={{ fontSize: 10, color: '#888', marginBottom: 6, fontWeight: 700 }}>⚖️ NEUTRAL</div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 180, overflow: 'auto' }}>{stripMd(neu)}</div>
                                   </div>}
-                                  {con && <div style={{ background: 'rgba(100,200,255,0.06)', borderRadius: 6, padding: 8 }}>
-                                    <div style={{ fontSize: 10, color: '#64c8ff', marginBottom: 4 }}>CONSERVATIVE</div>
-                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>{con.slice(0, 300)}…</div>
+                                  {con && <div style={{ background: 'rgba(100,200,255,0.06)', borderRadius: 6, padding: 10 }}>
+                                    <div style={{ fontSize: 10, color: '#64c8ff', marginBottom: 6, fontWeight: 700 }}>🛡️ CONSERVATIVE</div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 180, overflow: 'auto' }}>{stripMd(con)}</div>
                                   </div>}
                                 </div>
                               </div>
