@@ -2177,11 +2177,11 @@ function AiTradeTab() {
                     <tr key={`${i}-detail`}>
                       <td colSpan={4} style={{ padding: '12px 8px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                         {[
-                          { label: 'デリバティブ分析', key: 'market_report' },
-                          { label: 'マクロ・センチメント', key: 'sentiment_report' },
-                          { label: 'テクニカル', key: 'news_report' },
-                          { label: '投資計画', key: 'investment_plan' },
-                          { label: '最終判断', key: 'final_trade_decision' },
+                          { label: '🔬 デリバティブ分析', key: 'market_report' },
+                          { label: '🌍 マクロ・センチメント', key: 'sentiment_report' },
+                          { label: '📈 テクニカル', key: 'news_report' },
+                          { label: '📋 投資計画（Research Manager）', key: 'investment_plan' },
+                          { label: '💼 最終判断（Portfolio Manager）', key: 'final_trade_decision' },
                         ].map(({ label, key }) => t[key] ? (
                           <div key={key} style={{ marginBottom: 10 }}>
                             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>{label}</div>
@@ -2190,6 +2190,57 @@ function AiTradeTab() {
                             </div>
                           </div>
                         ) : null)}
+                        {/* Bull vs Bear ディベート */}
+                        {t.investment_debate && (() => {
+                          try {
+                            const d = typeof t.investment_debate === 'string' ? JSON.parse(t.investment_debate) : t.investment_debate
+                            const bull = d.bull_history || ''
+                            const bear = d.bear_history || ''
+                            return (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>🐂🐻 Bull vs Bear ディベート</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                  {bull && <div style={{ background: 'rgba(0,212,160,0.06)', borderRadius: 6, padding: 8 }}>
+                                    <div style={{ fontSize: 10, color: '#00d4a0', marginBottom: 4 }}>BULL</div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto' }}>{bull.slice(0, 500)}…</div>
+                                  </div>}
+                                  {bear && <div style={{ background: 'rgba(255,107,107,0.06)', borderRadius: 6, padding: 8 }}>
+                                    <div style={{ fontSize: 10, color: '#ff6b6b', marginBottom: 4 }}>BEAR</div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto' }}>{bear.slice(0, 500)}…</div>
+                                  </div>}
+                                </div>
+                              </div>
+                            )
+                          } catch { return null }
+                        })()}
+                        {/* リスク管理ディベート */}
+                        {t.risk_debate && (() => {
+                          try {
+                            const d = typeof t.risk_debate === 'string' ? JSON.parse(t.risk_debate) : t.risk_debate
+                            const agg = d.aggressive_history || ''
+                            const con = d.conservative_history || ''
+                            const neu = d.neutral_history || ''
+                            return (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>⚖️ リスク管理ディベート</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                                  {agg && <div style={{ background: 'rgba(247,147,26,0.06)', borderRadius: 6, padding: 8 }}>
+                                    <div style={{ fontSize: 10, color: '#f7931a', marginBottom: 4 }}>AGGRESSIVE</div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>{agg.slice(0, 300)}…</div>
+                                  </div>}
+                                  {neu && <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: 8 }}>
+                                    <div style={{ fontSize: 10, color: '#888', marginBottom: 4 }}>NEUTRAL</div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>{neu.slice(0, 300)}…</div>
+                                  </div>}
+                                  {con && <div style={{ background: 'rgba(100,200,255,0.06)', borderRadius: 6, padding: 8 }}>
+                                    <div style={{ fontSize: 10, color: '#64c8ff', marginBottom: 4 }}>CONSERVATIVE</div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>{con.slice(0, 300)}…</div>
+                                  </div>}
+                                </div>
+                              </div>
+                            )
+                          } catch { return null }
+                        })()}
                       </td>
                     </tr>
                   )}
