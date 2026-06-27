@@ -1,26 +1,105 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+/* NOTE: Tailwind Preflight (@tailwind base) is intentionally OMITTED.
+   This project's app/page.tsx monolith was authored WITHOUT Preflight
+   (no @tailwind directives existed before; it uses custom CSS classes
+   + inline styles only). Enabling Preflight now would reset the
+   untouched monolith's base elements (tables, headings, buttons) and
+   risk a visual regression. We load only components + utilities so the
+   new design-system utilities (bg-bg-1, text-up, rounded-panel, ...)
+   work, while the existing page renders exactly as before.
+   A scoped reset (* { box-sizing; margin:0; padding:0 }) + an explicit
+   border-style default for Tailwind border utilities is provided below. */
+@tailwind components;
+@tailwind utilities;
 
+/* ============================================================
+   DESIGN TOKENS
+   Two coexisting layers, intentionally NOT averaged:
+   1. LEGACY tokens (--bg2, --btc, --cyan, --green, --red, ...)
+      kept verbatim because the existing app/page.tsx monolith and
+      src/components/* read them. Do not remove.
+   2. PREMIUM TERMINAL tokens (--bg-1/-2, --glass*, --hairline*,
+      --accent*, --cool, --up/--down, --shadow*, --r-*) from
+      docs/redesign-premium-terminal-fx.md. Authoritative for the
+      new design system (src/components/ui/*).
+   Where a name is shared (--bg, --text, --text-dim, --text-muted)
+   the premium-terminal value wins; legacy values were near-identical.
+   ============================================================ */
 :root {
-  --bg: #050508;
+  /* ----- legacy (kept for app/page.tsx + src/components/*) ----- */
+  /* NOTE: --green/--red/--cyan are desaturated to the refined palette.
+     Meaning is preserved (green=up/positive, red=down/negative, cyan=cool info).
+     Legacy --green-dim/--red-dim/--cyan-dim updated to match. */
   --bg2: #0a0b12;
-  --card: rgba(15,17,26,0.85);
-  --card-border: rgba(247,147,26,0.18);
+  --card: rgba(10, 12, 16, 0.88);
+  --card-border: var(--hairline);
   --btc: #F7931A;
-  --btc-dim: rgba(247,147,26,0.15);
-  --cyan: #00D4FF;
-  --cyan-dim: rgba(0,212,255,0.1);
-  --green: #00FF88;
-  --green-dim: rgba(0,255,136,0.1);
-  --red: #FF3366;
-  --red-dim: rgba(255,51,102,0.1);
-  --text: #E8F4FF;
-  --text-muted: #4A5568;
-  --text-dim: #8899AA;
-  --mono: 'JetBrains Mono', 'Courier New', monospace;
-  --sans: 'Inter', system-ui, sans-serif;
+  --btc-dim: rgba(247, 147, 26, 0.13);
+  --cyan: #4FB6C7;
+  --cyan-dim: rgba(79, 182, 199, 0.10);
+  --green: #2DBE84;
+  --green-dim: rgba(45, 190, 132, 0.12);
+  --red: #F05D72;
+  --red-dim: rgba(240, 93, 114, 0.12);
+
+  /* ----- premium terminal: backgrounds (純黒回避) ----- */
+  --bg: #060709;
+  --bg-1: #0a0c10;
+  --bg-2: #0f1218;
+
+  /* ----- glass ----- */
+  --glass: rgba(255, 255, 255, 0.024);
+  --glass-2: rgba(255, 255, 255, 0.045);
+
+  /* ----- hairlines ----- */
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-2: rgba(255, 255, 255, 0.13);
+
+  /* ----- accent (single lock) ----- */
+  --accent: #F7931A;
+  --accent-soft: rgba(247, 147, 26, 0.13);
+
+  /* ----- cool secondary (desaturated, restrained) ----- */
+  --cool: #4FB6C7;
+
+  /* ----- semantic data signs ----- */
+  --up: #2DBE84;
+  --down: #F05D72;
+  --up-soft: rgba(45, 190, 132, 0.13);
+  --down-soft: rgba(240, 93, 114, 0.13);
+
+  /* ----- text ----- */
+  --text: #E9EEF5;
+  --text-dim: #92A0B2;
+  --text-muted: #5C6878;
+
+  /* ----- shadows (tinted, soft) + inner highlight ----- */
+  --shadow: 0 10px 34px -8px rgba(0, 0, 0, 0.55);
+  --shadow-soft: 0 6px 22px -10px rgba(0, 0, 0, 0.5);
+  --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --glow-accent: 0 0 0 1px var(--accent-soft), 0 0 22px -6px rgba(247, 147, 26, 0.45);
+
+  /* ----- radii (one scale) ----- */
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 8px;
+  --r-pill: 999px;
+
+  /* ----- fonts: consume next/font vars, fall back to literals ----- */
+  --mono: var(--font-mono), 'JetBrains Mono', 'Courier New', monospace;
+  --sans: var(--font-sans), 'Geist Sans', system-ui, sans-serif;
+
+  /* ----- z-index scale ----- */
+  --z-grain: 60;
+  --z-header: 40;
+  --z-tabbar: 30;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Preflight is omitted (see top note); Tailwind border-* utilities need a
+   default border-style to render. Scope it to elements that opt into a
+   Tailwind border width so we never restyle the monolith's borders. */
+*, ::before, ::after { border-width: 0; border-style: solid; border-color: var(--hairline); }
 
 html { scroll-behavior: smooth; }
 
@@ -28,61 +107,158 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
+  font-feature-settings: 'cv01', 'ss01';
   -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
-  /* 六角形グリッド背景 */
+  text-rendering: optimizeLegibility;
+  min-height: 100dvh;
+  /* ambient depth: two soft accent/cool washes over the base */
   background-image:
-    radial-gradient(ellipse at 20% 50%, rgba(247,147,26,0.04) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(0,212,255,0.03) 0%, transparent 60%),
-    url("data:image/svg+xml,%3Csvg width='60' height='52' viewBox='0 0 60 52' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0 L60 17.3 L60 34.6 L30 52 L0 34.6 L0 17.3 Z' fill='none' stroke='rgba(247,147,26,0.04)' stroke-width='0.5'/%3E%3C/svg%3E");
-  background-size: 100% 100%, 100% 100%, 60px 52px;
+    radial-gradient(ellipse 80% 60% at 18% -10%, rgba(247, 147, 26, 0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(79, 182, 199, 0.035) 0%, transparent 55%);
+  background-attachment: fixed;
 }
 
-/* ===== スクロールバー ===== */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: var(--bg2); }
-::-webkit-scrollbar-thumb { background: rgba(247,147,26,0.3); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: var(--btc); }
+/* tabular numerals everywhere numbers live */
+.tabular { font-variant-numeric: tabular-nums; }
+.font-mono, .text-mono { font-family: var(--mono); }
 
-/* ===== グラスカード ===== */
+/* ============================================================
+   GRAIN / NOISE OVERLAY
+   Fixed, pointer-events-none, GPU-cheap. Single layer (z-grain).
+   Replaces digital flatness without touching scrolling content.
+   ============================================================ */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+/* ============================================================
+   SCROLLBAR (kept, retoned to hairline/accent)
+   ============================================================ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-1); }
+::-webkit-scrollbar-thumb { background: var(--hairline-2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-soft); }
+
+/* ============================================================
+   NEW TOKEN-BASED UTILITIES (premium terminal)
+   Plain CSS so they work regardless of Tailwind purge.
+   ============================================================ */
+.hairline { border: 1px solid var(--hairline); }
+.hairline-t { border-top: 1px solid var(--hairline); }
+.hairline-b { border-bottom: 1px solid var(--hairline); }
+.divide-hairline > * + * { border-top: 1px solid var(--hairline); }
+
+.surface-1 { background: var(--bg-1); }
+.surface-2 { background: var(--bg-2); }
+.surface-glass { background: var(--glass); }
+
+.text-up   { color: var(--up); }
+.text-down { color: var(--down); }
+.text-accent { color: var(--accent); }
+.text-cool { color: var(--cool); }
+.text-dim  { color: var(--text-dim); }
+.text-muted2 { color: var(--text-muted); }
+
+/* focus ring shared by every interactive primitive */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-soft);
+  border-radius: var(--r-sm);
+}
+
+/* ============================================================
+   GLASS HEADER / TABBAR (blur ONLY on fixed/sticky — perf)
+   ============================================================ */
+.glass-bar {
+  background: linear-gradient(180deg, rgba(10, 12, 16, 0.82), rgba(10, 12, 16, 0.66));
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* ============================================================
+   KEYFRAMES (premium terminal — restrained, motivated)
+   ============================================================ */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.82); }
+}
+@keyframes live-halo {
+  0%   { opacity: 0.5; transform: scale(1); }
+  70%  { opacity: 0;   transform: scale(2.6); }
+  100% { opacity: 0;   transform: scale(2.6); }
+}
+@keyframes tick-up {
+  0%   { background-color: var(--up-soft); }
+  100% { background-color: transparent; }
+}
+@keyframes tick-down {
+  0%   { background-color: var(--down-soft); }
+  100% { background-color: transparent; }
+}
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.tab-crossfade { animation: panel-in 180ms cubic-bezier(0.32, 0.72, 0, 1); }
+.tick-flash-up { animation: tick-up 600ms ease-out; }
+.tick-flash-down { animation: tick-down 600ms ease-out; }
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-1) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ============================================================
+   LEGACY CLASSES — kept verbatim for app/page.tsx + components.
+   Do not edit; the monolith and existing components depend on them.
+   ============================================================ */
 .glass-card {
-  background: var(--card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--card-border);
-  border-radius: 16px;
+  /* Premium terminal: --bg-1 core, hairline border (no orange glow),
+     soft tinted shadow + inset top highlight, --r-lg radius. */
+  background: var(--bg-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
   box-shadow:
-    0 4px 24px rgba(0,0,0,0.4),
-    0 0 0 0.5px rgba(247,147,26,0.08) inset,
-    0 1px 0 rgba(255,255,255,0.06) inset;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    var(--shadow),
+    var(--inset-highlight);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
 }
 .glass-card:hover {
-  border-color: rgba(247,147,26,0.35);
+  border-color: var(--hairline-2);
   box-shadow:
-    0 4px 32px rgba(0,0,0,0.5),
-    0 0 20px rgba(247,147,26,0.06),
-    0 0 0 0.5px rgba(247,147,26,0.15) inset,
-    0 1px 0 rgba(255,255,255,0.08) inset;
+    0 12px 40px -8px rgba(0, 0, 0, 0.65),
+    var(--inset-highlight);
 }
 
-/* ===== ネオングロー ===== */
-.glow-btc  { box-shadow: 0 0 20px rgba(247,147,26,0.4), 0 0 40px rgba(247,147,26,0.15); }
-.glow-green { box-shadow: 0 0 20px rgba(0,255,136,0.4), 0 0 40px rgba(0,255,136,0.15); }
-.glow-red   { box-shadow: 0 0 20px rgba(255,51,102,0.4), 0 0 40px rgba(255,51,102,0.15); }
-.glow-cyan  { box-shadow: 0 0 20px rgba(0,212,255,0.4), 0 0 40px rgba(0,212,255,0.15); }
+/* Glows: softened from neon to tinted ambient. Meaning preserved. */
+.glow-btc   { box-shadow: 0 0 16px rgba(247, 147, 26, 0.28), 0 0 32px rgba(247, 147, 26, 0.10); }
+.glow-green { box-shadow: 0 0 16px rgba(45, 190, 132, 0.28), 0 0 32px rgba(45, 190, 132, 0.10); }
+.glow-red   { box-shadow: 0 0 16px rgba(240, 93, 114, 0.28), 0 0 32px rgba(240, 93, 114, 0.10); }
+.glow-cyan  { box-shadow: 0 0 16px rgba(79, 182, 199, 0.28), 0 0 32px rgba(79, 182, 199, 0.10); }
 
-/* ===== テキストグロー ===== */
-.text-btc   { color: var(--btc); text-shadow: 0 0 20px rgba(247,147,26,0.5); }
-.text-green { color: var(--green); text-shadow: 0 0 20px rgba(0,255,136,0.5); }
-.text-red   { color: var(--red); text-shadow: 0 0 20px rgba(255,51,102,0.5); }
-.text-cyan  { color: var(--cyan); text-shadow: 0 0 20px rgba(0,212,255,0.5); }
-.text-mono  { font-family: var(--mono); }
+/* Text colors: green=up, red=down, cyan=cool info. Text-shadow restrained (not neon bloom). */
+.text-btc   { color: var(--btc);  text-shadow: 0 0 14px rgba(247, 147, 26, 0.30); }
+.text-green { color: var(--up);   text-shadow: 0 0 14px rgba(45, 190, 132, 0.25); }
+.text-red   { color: var(--down); text-shadow: 0 0 14px rgba(240, 93, 114, 0.25); }
+.text-cyan  { color: var(--cool); text-shadow: none; }
 
-/* ===== キーフレーム ===== */
 @keyframes pulse-btc {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(247,147,26,0.6); }
-  50%       { opacity: 0.6; box-shadow: 0 0 20px rgba(247,147,26,0.9); }
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(247, 147, 26, 0.6); }
+  50%       { opacity: 0.6; box-shadow: 0 0 20px rgba(247, 147, 26, 0.9); }
 }
 @keyframes scan-line {
   0%   { transform: translateY(-100%); opacity: 0; }
@@ -100,166 +276,158 @@ body {
 }
 @keyframes price-flash {
   0%   { color: var(--btc); }
-  50%  { color: #fff; text-shadow: 0 0 30px rgba(247,147,26,0.9); }
+  50%  { color: #fff; text-shadow: 0 0 30px rgba(247, 147, 26, 0.9); }
   100% { color: var(--btc); }
 }
 
-/* ===== タブバー ===== */
+/* Tab bar: glass-bar treatment, hairline border, no orange glow ring. */
 .tab-bar {
   display: flex;
   overflow-x: auto;
-  gap: 4px;
+  gap: 3px;
   padding: 4px;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(247,147,26,0.1);
-  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(10, 12, 16, 0.80), rgba(10, 12, 16, 0.64));
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
   margin-bottom: 16px;
   scrollbar-width: none;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-tabbar);
 }
 .tab-bar::-webkit-scrollbar { display: none; }
 
+/* Tab button: refined active indicator (accent pill underline), no text-shadow neon. */
 .tab-btn {
   flex-shrink: 0;
-  padding: 8px 14px;
-  border-radius: 8px;
+  padding: 7px 13px;
+  border-radius: var(--r-sm);
   font-size: 0.78rem;
   font-weight: 600;
   font-family: var(--sans);
   letter-spacing: 0.02em;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.18s, background 0.18s, box-shadow 0.18s;
   border: 1px solid transparent;
   color: var(--text-dim);
   background: transparent;
   white-space: nowrap;
+  position: relative;
 }
 .tab-btn:hover {
   color: var(--text);
-  background: rgba(247,147,26,0.08);
-  border-color: rgba(247,147,26,0.2);
+  background: var(--glass-2);
+  border-color: var(--hairline);
 }
+.tab-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-soft);
+}
+.tab-btn:active { transform: scale(0.99); }
 .tab-btn.active {
-  color: var(--btc);
-  background: rgba(247,147,26,0.12);
-  border-color: rgba(247,147,26,0.4);
-  box-shadow: 0 0 16px rgba(247,147,26,0.15);
-  text-shadow: 0 0 12px rgba(247,147,26,0.4);
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: rgba(247, 147, 26, 0.28);
+  text-shadow: none;
+  box-shadow: none;
 }
 
-/* ===== テーブル ===== */
-.data-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.8rem; }
+/* Data table: hairline row dividers, tabular-nums, muted header, desaturated heatmap tints. */
+.data-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
 .data-table th {
   padding: 8px 10px;
   text-align: right;
   color: var(--text-muted);
-  font-size: 0.68rem;
+  font-size: 0.67rem;
   font-family: var(--sans);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  border-bottom: 1px solid rgba(247,147,26,0.1);
+  border-bottom: 1px solid var(--hairline);
   font-weight: 500;
+  background: transparent;
 }
 .data-table th:first-child { text-align: left; }
 .data-table td {
   padding: 7px 10px;
   text-align: right;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--hairline);
+  font-variant-numeric: tabular-nums;
 }
+/* Zebra: alternate rows with bg-2 for readability at high density */
+.data-table tbody tr:nth-child(even) td { background: rgba(15, 18, 24, 0.50); }
 .data-table td:first-child { text-align: left; font-family: var(--sans); font-weight: 600; }
-.data-table tr:hover td { background: rgba(247,147,26,0.04); }
+.data-table tr:hover td { background: var(--glass-2) !important; }
 
-/* ===== FR ヒートマップカラー ===== */
-.fr-strong-pos { background: rgba(255,51,102,0.25) !important; color: #ff8098 !important; }
-.fr-mid-pos    { background: rgba(255,51,102,0.12) !important; color: #ff6080 !important; }
-.fr-weak-pos   { background: rgba(255,51,102,0.06) !important; color: #cc4466 !important; }
+/* FR heatmap: desaturated down colors use --down family; up (negative FR) uses --up family.
+   Positive FR = longs paying shorts = bearish lean = red family.
+   Negative FR = shorts paying longs = bullish lean = teal/up family. */
+.fr-strong-pos { background: rgba(240, 93, 114, 0.20) !important; color: #F08090 !important; }
+.fr-mid-pos    { background: rgba(240, 93, 114, 0.10) !important; color: #D07080 !important; }
+.fr-weak-pos   { background: rgba(240, 93, 114, 0.05) !important; color: #A05868 !important; }
 .fr-neutral    { background: transparent !important; color: var(--text-dim) !important; }
-.fr-weak-neg   { background: rgba(0,212,255,0.06) !important; color: #4499cc !important; }
-.fr-mid-neg    { background: rgba(0,212,255,0.12) !important; color: #00aadd !important; }
-.fr-strong-neg { background: rgba(0,212,255,0.25) !important; color: #00d4ff !important; }
+.fr-weak-neg   { background: rgba(45, 190, 132, 0.05) !important; color: #4A9A80 !important; }
+.fr-mid-neg    { background: rgba(45, 190, 132, 0.10) !important; color: #2DBE84 !important; }
+.fr-strong-neg { background: rgba(45, 190, 132, 0.20) !important; color: #4FD4A0 !important; }
 
-/* ===== タブ アイコン/ラベル ===== */
 .tab-icon  { display: inline; }
-.tab-label { display: inline; }   /* PCではテキストも表示 */
+.tab-label { display: inline; }
 
-/* ===== モバイル最適化 ===== */
-
-/* タブレット (〜900px) */
 @media (max-width: 900px) {
   .data-table { font-size: 0.75rem; }
   .data-table th, .data-table td { padding: 6px 8px; }
 }
 
-/* スマホ横 / タブレット縦 (〜768px) */
 @media (max-width: 768px) {
   body { font-size: 14px; }
-
-  /* ヘッダー */
   .btc-header-price { font-size: 1.3rem !important; }
   .btc-header-inner { flex-wrap: wrap; gap: 8px !important; }
-
-  /* タブバー: スクロール可・アイコンのみ表示でコンパクトに */
   .tab-bar { padding: 3px; gap: 2px; }
   .tab-btn {
     font-size: 0.68rem;
     padding: 7px 9px;
     border-radius: 7px;
   }
-  .tab-btn .tab-label { display: none; }       /* テキスト非表示 */
-  .tab-btn .tab-icon  { display: inline; }      /* アイコンのみ */
-
-  /* カード */
+  .tab-btn .tab-label { display: none; }
+  .tab-btn .tab-icon  { display: inline; }
   .glass-card { border-radius: 12px; }
-
-  /* テーブル横スクロール */
   .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .data-table { font-size: 0.72rem; min-width: 480px; }
   .data-table th, .data-table td { padding: 5px 7px; }
-
-  /* メトリクスカード */
   .metric-value { font-size: 1.15rem !important; }
   .metric-label { font-size: 0.62rem; }
-
-  /* セクションヘッダー */
   .section-header-title { font-size: 0.78rem !important; }
 }
 
-/* スマホ縦 (〜480px) */
 @media (max-width: 480px) {
-  /* タブバー: アイコン + 短縮ラベル */
   .tab-btn { padding: 6px 8px; font-size: 0.62rem; }
-
-  /* カード padding 縮小 */
   .glass-card { padding: 10px 12px !important; border-radius: 10px; }
-
-  /* テーブルは横スクロール前提 */
   .data-table { font-size: 0.68rem; min-width: 440px; }
-
-  /* グリッドは単列 */
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-
-  /* AI分析パネル */
   .analysis-grid { grid-template-columns: 1fr !important; }
-
-  /* SVGチャートは拡大スクロール */
   .chart-svg-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .chart-svg-wrap svg { min-width: 480px; }
 }
 
-/* ===== アニメーション付き数値 ===== */
+/* Price display: mono tabular, accent color, restrained shadow (not neon bloom). */
 .price-display {
   font-family: var(--mono);
   font-weight: 700;
   font-size: clamp(1.8rem, 5vw, 2.8rem);
   color: var(--btc);
-  text-shadow: 0 0 30px rgba(247,147,26,0.4);
+  text-shadow: 0 0 18px rgba(247, 147, 26, 0.28);
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
+/* Metric value: mono tabular, refined weight. */
 .metric-value {
   font-family: var(--mono);
   font-weight: 600;
   font-size: 1.4rem;
   letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 
 .metric-label {
@@ -279,14 +447,13 @@ body {
   font-family: var(--mono);
 }
 
-/* ===== セパレーター ===== */
+/* Divider: hairline, no orange accent glow. */
 .divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(247,147,26,0.2), transparent);
+  background: linear-gradient(90deg, transparent, var(--hairline-2), transparent);
   margin: 16px 0;
 }
 
-/* ===== バッジ ===== */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -297,28 +464,28 @@ body {
   font-weight: 600;
   letter-spacing: 0.05em;
 }
-.badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,255,136,0.2); }
-.badge-red   { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(255,51,102,0.2); }
-.badge-btc   { background: var(--btc-dim);   color: var(--btc);   border: 1px solid rgba(247,147,26,0.2); }
-.badge-cyan  { background: var(--cyan-dim);  color: var(--cyan);  border: 1px solid rgba(0,212,255,0.2); }
-.badge-muted { background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid rgba(255,255,255,0.08); }
+/* Badges: routed to refined semantic palette. --up/--down replace neon green/red. */
+.badge-green { background: var(--up-soft);   color: var(--up);   border: 1px solid rgba(45, 190, 132, 0.22); }
+.badge-red   { background: var(--down-soft); color: var(--down); border: 1px solid rgba(240, 93, 114, 0.22); }
+.badge-btc   { background: var(--btc-dim);   color: var(--btc);  border: 1px solid rgba(247, 147, 26, 0.22); }
+.badge-cyan  { background: var(--cyan-dim);  color: var(--cool); border: 1px solid rgba(79, 182, 199, 0.20); }
+.badge-muted { background: var(--glass);     color: var(--text-dim); border: 1px solid var(--hairline); }
 
-/* ===== ライブインジケーター ===== */
+/* Live dot: uses --up color (semantic green), live-pulse animation, soft halo. */
 .live-dot {
   display: inline-block;
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: var(--green);
-  animation: pulse-btc 2s infinite;
-  box-shadow: 0 0 8px rgba(0,255,136,0.8);
+  background: var(--up);
+  animation: live-pulse 2.2s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(45, 190, 132, 0.55);
+  position: relative;
 }
 
-/* ===== タブコンテンツ ===== */
 .tab-content {
   animation: fade-in 0.25s ease;
 }
 
-/* ===== レスポンシブグリッド ===== */
 .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
@@ -329,4 +496,35 @@ body {
 }
 @media (max-width: 480px) {
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   REDUCED MOTION (mandatory) — collapse all animation to static
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .live-dot, .skeleton-shimmer { animation: none !important; }
+}
+
+/* ============================================================
+   REDUCED TRANSPARENCY — solid fills instead of glass/blur
+   ============================================================ */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-bar {
+    background: var(--bg-1) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .glass-card {
+    background: var(--bg-1) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .surface-glass { background: var(--bg-1) !important; }
+  .grain-overlay { display: none !important; }
 }
