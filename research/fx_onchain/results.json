@@ -1,0 +1,1099 @@
+{
+  "meta": {
+    "train": [
+      "2023-01-01",
+      "2024-12-31"
+    ],
+    "test": [
+      "2025-01-01",
+      "2026-06-30"
+    ],
+    "pf_pass": 1.3,
+    "min_trades": 20,
+    "spread_pips": {
+      "USDJPY": 1.0,
+      "EURJPY": 1.0,
+      "EURUSD": 0.8
+    },
+    "available_features": [
+      "sc_d1w_pct",
+      "sc_d4w_pct",
+      "tvl_d1w_pct",
+      "eth_tron_ratio",
+      "ratio_d1w"
+    ],
+    "blocked_features": {},
+    "unblocked_2026_06_27": {
+      "tvl_d1w_pct": "DeFi TVL fetched to data/defi_tvl_daily.csv",
+      "eth_tron_ratio": "ETH/Tron stablecoin split fetched to data/{ethereum,tron}_sc_daily.csv",
+      "ratio_d1w": "7d change of eth_tron_ratio (from the above)",
+      "btc_weekend_return_pct": "BTC daily close fetched to data/btc_daily.csv (H3, Monday-only)"
+    },
+    "note": "TEST end 2026-06-30 requested; FX data ends ~2026-03-30 so TEST is clipped. See report. 2026-06-27: H2/H3/H4-split unblocked via local CSVs (DeFi TVL, ETH/Tron stablecoin split, BTC daily)."
+  },
+  "data_coverage": {
+    "USDJPY": {
+      "train_days": 514,
+      "test_days": 296,
+      "test_range": [
+        "2025-01-01",
+        "2026-03-25"
+      ]
+    },
+    "EURJPY": {
+      "train_days": 616,
+      "test_days": 384,
+      "test_range": [
+        "2025-01-01",
+        "2026-03-30"
+      ]
+    },
+    "EURUSD": {
+      "train_days": 625,
+      "test_days": 389,
+      "test_range": [
+        "2025-01-01",
+        "2026-03-30"
+      ]
+    }
+  },
+  "hypotheses": [
+    {
+      "hypothesis": "H1",
+      "pair": "USDJPY",
+      "feature": "sc_d1w_pct",
+      "prior": "supply expansion -> USD demand -> USDJPY up (prior: above/long)",
+      "train_chosen": {
+        "mode": "above",
+        "direction": 1,
+        "thr": 0.92236,
+        "train_pf": 1.2274,
+        "train_n": 103
+      },
+      "test": {
+        "pf_net": 0.9881,
+        "pf_gross": 1.0169,
+        "n_trades": 107,
+        "ret_sum_net": -0.00297
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": 0.73789,
+          "pf_net": 0.9856,
+          "n": 135
+        },
+        "plus20": {
+          "thr": 1.10683,
+          "pf_net": 1.1032,
+          "n": 82
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "below",
+          "direction": -1,
+          "thr": -0.5318070143874576,
+          "train_pf": 1.397284983525771,
+          "oos_pf_net": NaN,
+          "oos_pf_gross": NaN,
+          "oos_n": 0,
+          "oos_ret_net": 0.0
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "above",
+          "direction": 1,
+          "thr": -0.11860487784446588,
+          "train_pf": 1.3331135533696088,
+          "oos_pf_net": 0.9620766677677931,
+          "oos_pf_gross": 0.9873407018823105,
+          "oos_n": 163,
+          "oos_ret_net": -0.016090421893186824
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "above",
+          "direction": 1,
+          "thr": 1.0114691536225753,
+          "train_pf": 1.170519557715714,
+          "oos_pf_net": 1.3632264411340285,
+          "oos_pf_gross": 1.405927601678663,
+          "oos_n": 70,
+          "oos_ret_net": 0.047759433387991546
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=0.9881146323884431 < 1.3"
+    },
+    {
+      "hypothesis": "H1",
+      "pair": "USDJPY",
+      "feature": "sc_d4w_pct",
+      "prior": "supply expansion (4w) -> USDJPY up",
+      "train_chosen": {
+        "mode": "below",
+        "direction": 1,
+        "thr": 1.61865,
+        "train_pf": 1.3006,
+        "train_n": 308
+      },
+      "test": {
+        "pf_net": 1.0776,
+        "pf_gross": 1.1187,
+        "n_trades": 84,
+        "ret_sum_net": 0.01083
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": 1.29492,
+          "pf_net": 1.1144,
+          "n": 65
+        },
+        "plus20": {
+          "thr": 1.94238,
+          "pf_net": 0.9734,
+          "n": 104
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "below",
+          "direction": -1,
+          "thr": -1.6867430082615642,
+          "train_pf": 1.3422206374382994,
+          "oos_pf_net": NaN,
+          "oos_pf_gross": NaN,
+          "oos_n": 0,
+          "oos_ret_net": 0.0
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "above",
+          "direction": 1,
+          "thr": 2.910876041812359,
+          "train_pf": 1.4033380114434344,
+          "oos_pf_net": 0.8763385999784421,
+          "oos_pf_gross": 0.9015647261251908,
+          "oos_n": 85,
+          "oos_ret_net": -0.02603378812621797
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": 1.2534186521000246,
+          "train_pf": 1.2963304876772654,
+          "oos_pf_net": 1.115070373119556,
+          "oos_pf_gross": 1.1559477744723456,
+          "oos_n": 63,
+          "oos_ret_net": 0.012122553174653269
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=1.07756834849348 < 1.3"
+    },
+    {
+      "hypothesis": "H4",
+      "pair": "EURUSD",
+      "feature": "sc_d1w_pct",
+      "prior": "stablecoin (USD) supply -> EURUSD next-day",
+      "train_chosen": {
+        "mode": "below",
+        "direction": 1,
+        "thr": -0.16831,
+        "train_pf": 1.2629,
+        "train_n": 188
+      },
+      "test": {
+        "pf_net": 2.1754,
+        "pf_gross": 2.2874,
+        "n_trades": 66,
+        "ret_sum_net": 0.08095
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": -0.20198,
+          "pf_net": 1.8162,
+          "n": 58
+        },
+        "plus20": {
+          "thr": -0.13465,
+          "pf_net": 1.9412,
+          "n": 71
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": -0.4148379838385008,
+          "train_pf": 1.4413710764711225,
+          "oos_pf_net": Infinity,
+          "oos_pf_gross": Infinity,
+          "oos_n": 1,
+          "oos_ret_net": 0.001200236354235902
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "below",
+          "direction": 1,
+          "thr": -0.4163431142795293,
+          "train_pf": 1.4510668831987155,
+          "oos_pf_net": 3.4293840681520336,
+          "oos_pf_gross": 3.530029167603464,
+          "oos_n": 8,
+          "oos_ret_net": 0.028698112496219536
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": -0.30894047817032083,
+          "train_pf": 1.4436794471402958,
+          "oos_pf_net": 1.9347604792584152,
+          "oos_pf_gross": 2.0571042047696193,
+          "oos_n": 42,
+          "oos_ret_net": 0.03570271985514
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "WF-OOS NOT VALIDATED: folds [0, 1] have <20 OOS trades/parameter (single TRAIN/TEST PF ignores fold fragility)",
+      "robustness_deep_dive": {
+        "bootstrap_test_pf": {
+          "n_trades": 66,
+          "point_pf": 2.1754,
+          "median": 2.1598,
+          "p5": 1.1111,
+          "p95": 4.0267,
+          "prob_pf_lt_1.3": 10.3,
+          "prob_pf_lt_1.0": 2.88
+        },
+        "pooled_wf_oos": {
+          "folds": [
+            {
+              "oos_end": "2024-06-30",
+              "n": 1,
+              "pf": "inf"
+            },
+            {
+              "oos_end": "2025-03-31",
+              "n": 8,
+              "pf": 3.4294
+            },
+            {
+              "oos_end": "2026-06-30",
+              "n": 42,
+              "pf": 1.9348
+            }
+          ],
+          "pooled_n": 51,
+          "pooled_pf": 2.3118,
+          "pooled_win_rate_pct": 45.098
+        },
+        "concentration": {
+          "win_rate_pct": 46.9697,
+          "median_trade": -0.0001,
+          "top3_win_share_of_gains_pct": 38.105,
+          "pf_without_top3_wins": 1.3465
+        }
+      }
+    },
+    {
+      "hypothesis": "H4",
+      "pair": "EURUSD",
+      "feature": "sc_d4w_pct",
+      "prior": "stablecoin (USD) supply (4w) -> EURUSD next-day",
+      "train_chosen": {
+        "mode": "above",
+        "direction": -1,
+        "thr": 3.29878,
+        "train_pf": 1.4166,
+        "train_n": 125
+      },
+      "test": {
+        "pf_net": 0.8425,
+        "pf_gross": 0.8805,
+        "n_trades": 155,
+        "ret_sum_net": -0.04309
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": 2.63902,
+          "pf_net": 0.7973,
+          "n": 188
+        },
+        "plus20": {
+          "thr": 3.95854,
+          "pf_net": 0.7858,
+          "n": 130
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": -1.415256858310232,
+          "train_pf": 1.180453224139732,
+          "oos_pf_net": NaN,
+          "oos_pf_gross": NaN,
+          "oos_n": 0,
+          "oos_ret_net": 0.0
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "below",
+          "direction": 1,
+          "thr": -1.4145001358249831,
+          "train_pf": 1.227599913446082,
+          "oos_pf_net": NaN,
+          "oos_pf_gross": NaN,
+          "oos_n": 0,
+          "oos_ret_net": 0.0
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": -0.989403948180938,
+          "train_pf": 1.1142855118805113,
+          "oos_pf_net": 0.6601653352014382,
+          "oos_pf_gross": 0.7239706176411163,
+          "oos_n": 14,
+          "oos_ret_net": -0.004096401129517695
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=0.8425107286625134 < 1.3"
+    },
+    {
+      "hypothesis": "H4b",
+      "pair": "EURJPY",
+      "feature": "sc_d1w_pct",
+      "prior": "stablecoin supply -> EURJPY (risk proxy)",
+      "train_chosen": {
+        "mode": "below",
+        "direction": 1,
+        "thr": 0.0,
+        "train_pf": 1.3196,
+        "train_n": 242
+      },
+      "test": {
+        "pf_net": 1.2354,
+        "pf_gross": 1.2787,
+        "n_trades": 88,
+        "ret_sum_net": 0.03056
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": -0.20479,
+          "pf_net": 1.4141,
+          "n": 58
+        },
+        "plus20": {
+          "thr": 0.20479,
+          "pf_net": 1.3567,
+          "n": 117
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": -0.035472721051548216,
+          "train_pf": 1.3433098836446944,
+          "oos_pf_net": 1.40453301219868,
+          "oos_pf_gross": 1.4641085028617915,
+          "oos_n": 21,
+          "oos_ret_net": 0.009832040460958265
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "above",
+          "direction": 1,
+          "thr": 0.2994893158741617,
+          "train_pf": 1.3751879086899261,
+          "oos_pf_net": 0.965766189669235,
+          "oos_pf_gross": 0.9936165052245813,
+          "oos_n": 163,
+          "oos_ret_net": -0.012323663328925955
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": 0.0,
+          "train_pf": 1.3309088044281954,
+          "oos_pf_net": 1.15924973915363,
+          "oos_pf_gross": 1.2053068046564261,
+          "oos_n": 76,
+          "oos_ret_net": 0.016091959573662253
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=1.2353805822072985 < 1.3"
+    },
+    {
+      "hypothesis": "H4b",
+      "pair": "EURJPY",
+      "feature": "sc_d4w_pct",
+      "prior": "stablecoin supply (4w) -> EURJPY",
+      "train_chosen": {
+        "mode": "below",
+        "direction": 1,
+        "thr": 0.77906,
+        "train_pf": 1.3157,
+        "train_n": 308
+      },
+      "test": {
+        "pf_net": 1.2659,
+        "pf_gross": 1.3182,
+        "n_trades": 85,
+        "ret_sum_net": 0.02702
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": 0.62325,
+          "pf_net": 1.2813,
+          "n": 78
+        },
+        "plus20": {
+          "thr": 0.93487,
+          "pf_net": 1.2659,
+          "n": 85
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "above",
+          "direction": 1,
+          "thr": -1.7110517593536367,
+          "train_pf": 1.2765598916353786,
+          "oos_pf_net": 1.703132953367865,
+          "oos_pf_gross": 1.774183875456777,
+          "oos_n": 156,
+          "oos_ret_net": 0.12166299934639653
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "above",
+          "direction": 1,
+          "thr": 2.935643202817819,
+          "train_pf": 1.4212827070916216,
+          "oos_pf_net": 0.9569054686957894,
+          "oos_pf_gross": 0.9854541937469437,
+          "oos_n": 104,
+          "oos_ret_net": -0.00969584519040717
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": 0.4386259721507369,
+          "train_pf": 1.3373323695708461,
+          "oos_pf_net": 1.2703862848450995,
+          "oos_pf_gross": 1.3213252956912045,
+          "oos_n": 73,
+          "oos_ret_net": 0.024150599404043398
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=1.2659303103518276 < 1.3"
+    },
+    {
+      "hypothesis": "H2",
+      "pair": "USDJPY",
+      "feature": "tvl_d1w_pct",
+      "prior": "TVL drop -> risk-off -> JPY strength -> USDJPY DOWN next day",
+      "train_chosen": {
+        "mode": "below",
+        "direction": 1,
+        "thr": -2.86784,
+        "train_pf": 1.2569,
+        "train_n": 103
+      },
+      "test": {
+        "pf_net": 0.6928,
+        "pf_gross": 0.7113,
+        "n_trades": 89,
+        "ret_sum_net": -0.0837
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": -3.44141,
+          "pf_net": 0.6925,
+          "n": 85
+        },
+        "plus20": {
+          "thr": -2.29427,
+          "pf_net": 0.6883,
+          "n": 95
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": -0.5435712621149256,
+          "train_pf": 1.2206091476217638,
+          "oos_pf_net": 1.1966988316884586,
+          "oos_pf_gross": 1.243676024240771,
+          "oos_n": 51,
+          "oos_ret_net": 0.015176088805190491
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "above",
+          "direction": 1,
+          "thr": 5.4684498799972445,
+          "train_pf": 1.3715726010323737,
+          "oos_pf_net": 1.1948377419329468,
+          "oos_pf_gross": 1.2226521281492295,
+          "oos_n": 45,
+          "oos_ret_net": 0.022769841200629522
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "above",
+          "direction": 1,
+          "thr": 5.622933788329441,
+          "train_pf": 1.2889358625540994,
+          "oos_pf_net": 1.1151705288039282,
+          "oos_pf_gross": 1.1478417948799904,
+          "oos_n": 39,
+          "oos_ret_net": 0.009852205586621886
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=0.6928011252663584 < 1.3"
+    },
+    {
+      "hypothesis": "H2",
+      "pair": "EURJPY",
+      "feature": "tvl_d1w_pct",
+      "prior": "TVL drop -> risk-off -> JPY strength -> EURJPY DOWN next day",
+      "train_chosen": {
+        "mode": "below",
+        "direction": 1,
+        "thr": -2.87676,
+        "train_pf": 1.2443,
+        "train_n": 123
+      },
+      "test": {
+        "pf_net": 1.2923,
+        "pf_gross": 1.332,
+        "n_trades": 121,
+        "ret_sum_net": 0.05956
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": -3.45211,
+          "pf_net": 1.2157,
+          "n": 113
+        },
+        "plus20": {
+          "thr": -2.30141,
+          "pf_net": 1.2729,
+          "n": 132
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": -2.6990967481701778,
+          "train_pf": 1.4714915158840607,
+          "oos_pf_net": 1.0557932224755715,
+          "oos_pf_gross": 1.0999992613290672,
+          "oos_n": 35,
+          "oos_ret_net": 0.002767755038101496
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "below",
+          "direction": 1,
+          "thr": -1.6275444709052889,
+          "train_pf": 1.415718866600063,
+          "oos_pf_net": 0.9213572084354544,
+          "oos_pf_gross": 0.9470245496774401,
+          "oos_n": 86,
+          "oos_ret_net": -0.015876502760553905
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": -3.1772267968875885,
+          "train_pf": 1.2437296969168474,
+          "oos_pf_net": 1.3852510683016437,
+          "oos_pf_gross": 1.4347022181253857,
+          "oos_n": 89,
+          "oos_ret_net": 0.0464594645880607
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=1.2922767832774618 < 1.3"
+    },
+    {
+      "hypothesis": "H4-split",
+      "pair": "EURUSD",
+      "feature": "eth_tron_ratio",
+      "prior": "ETH/Tron stablecoin ratio -> EURUSD next-day",
+      "train_chosen": {
+        "mode": "below",
+        "direction": 1,
+        "thr": 1.37709,
+        "train_pf": 1.3012,
+        "train_n": 125
+      },
+      "test": {
+        "pf_net": "nan",
+        "pf_gross": "nan",
+        "n_trades": 0,
+        "ret_sum_net": 0.0
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": 1.10167,
+          "pf_net": "nan",
+          "n": 0
+        },
+        "plus20": {
+          "thr": 1.6525,
+          "pf_net": 1.3886,
+          "n": 73
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": 1.451416544824538,
+          "train_pf": 1.475719190867641,
+          "oos_pf_net": 0.6888924983219308,
+          "oos_pf_gross": 0.7378310579944147,
+          "oos_n": 134,
+          "oos_ret_net": -0.054068254943479915
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "above",
+          "direction": 1,
+          "thr": 1.539612986887774,
+          "train_pf": 1.1624761185748387,
+          "oos_pf_net": 1.1298871472419887,
+          "oos_pf_gross": 1.1848145027923487,
+          "oos_n": 113,
+          "oos_ret_net": 0.022205926302580253
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": 1.3832077332350408,
+          "train_pf": 1.249506816639251,
+          "oos_pf_net": NaN,
+          "oos_pf_gross": NaN,
+          "oos_n": 0,
+          "oos_ret_net": 0.0
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=nan < 1.3"
+    },
+    {
+      "hypothesis": "H4-split",
+      "pair": "EURUSD",
+      "feature": "ratio_d1w",
+      "prior": "7d change of ETH/Tron stablecoin ratio -> EURUSD next-day",
+      "train_chosen": {
+        "mode": "above",
+        "direction": -1,
+        "thr": 0.0,
+        "train_pf": 1.0924,
+        "train_n": 246
+      },
+      "test": {
+        "pf_net": 0.9816,
+        "pf_gross": 1.0305,
+        "n_trades": 199,
+        "ret_sum_net": -0.00538
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": -0.34796,
+          "pf_net": 0.8473,
+          "n": 225
+        },
+        "plus20": {
+          "thr": 0.34796,
+          "pf_net": 0.9288,
+          "n": 172
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": -1.6372959542841015,
+          "train_pf": 1.1787990359391822,
+          "oos_pf_net": 0.531885731001,
+          "oos_pf_gross": 0.583305334958171,
+          "oos_n": 10,
+          "oos_ret_net": -0.0050531341390235435
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "above",
+          "direction": -1,
+          "thr": 0.026760751532850464,
+          "train_pf": 1.1224620524634117,
+          "oos_pf_net": 0.8854350445927129,
+          "oos_pf_gross": 0.9330206308723085,
+          "oos_n": 145,
+          "oos_ret_net": -0.025188156159161784
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": -1.4328860545428899,
+          "train_pf": 1.0134770610071129,
+          "oos_pf_net": 1.7937035449304966,
+          "oos_pf_gross": 1.8788845926962991,
+          "oos_n": 94,
+          "oos_ret_net": 0.08919358823779074
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=0.9815559270031273 < 1.3"
+    },
+    {
+      "hypothesis": "H4-split",
+      "pair": "USDJPY",
+      "feature": "eth_tron_ratio",
+      "prior": "ETH/Tron stablecoin ratio -> USDJPY next-day (optional)",
+      "train_chosen": {
+        "mode": "below",
+        "direction": -1,
+        "thr": 1.37708,
+        "train_pf": 1.5155,
+        "train_n": 103
+      },
+      "test": {
+        "pf_net": "nan",
+        "pf_gross": "nan",
+        "n_trades": 0,
+        "ret_sum_net": 0.0
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": 1.10166,
+          "pf_net": "nan",
+          "n": 0
+        },
+        "plus20": {
+          "thr": 1.65249,
+          "pf_net": 0.8541,
+          "n": 60
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "below",
+          "direction": -1,
+          "thr": 1.4500528110643456,
+          "train_pf": 1.638734503312687,
+          "oos_pf_net": 0.5131164709827463,
+          "oos_pf_gross": 0.5337580124998897,
+          "oos_n": 106,
+          "oos_ret_net": -0.1154495118388954
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "below",
+          "direction": 1,
+          "thr": 1.5409745642496493,
+          "train_pf": 1.3784701241303443,
+          "oos_pf_net": 0.8830752679345595,
+          "oos_pf_gross": 0.9045427999517349,
+          "oos_n": 99,
+          "oos_ret_net": -0.034351657940164766
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "below",
+          "direction": -1,
+          "thr": 1.384268124549014,
+          "train_pf": 1.3956416747157727,
+          "oos_pf_net": NaN,
+          "oos_pf_gross": NaN,
+          "oos_n": 0,
+          "oos_ret_net": 0.0
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=nan < 1.3"
+    },
+    {
+      "hypothesis": "H4-split",
+      "pair": "USDJPY",
+      "feature": "ratio_d1w",
+      "prior": "7d change of ETH/Tron stablecoin ratio -> USDJPY next-day (optional)",
+      "train_chosen": {
+        "mode": "above",
+        "direction": 1,
+        "thr": 0.31681,
+        "train_pf": 1.4922,
+        "train_n": 154
+      },
+      "test": {
+        "pf_net": 1.175,
+        "pf_gross": 1.2141,
+        "n_trades": 129,
+        "ret_sum_net": 0.04237
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": 0.25344,
+          "pf_net": 1.229,
+          "n": 133
+        },
+        "plus20": {
+          "thr": 0.38017,
+          "pf_net": 1.2181,
+          "n": 127
+        }
+      },
+      "walk_forward_oos": [
+        {
+          "fold": 0,
+          "trained": true,
+          "train_end": "2023-12-31",
+          "oos_end": "2024-06-30",
+          "mode": "above",
+          "direction": 1,
+          "thr": 0.07063543467444454,
+          "train_pf": 1.2314863448899056,
+          "oos_pf_net": 2.1709579434269197,
+          "oos_pf_gross": 2.264108903971957,
+          "oos_n": 55,
+          "oos_ret_net": 0.06942163650923802
+        },
+        {
+          "fold": 1,
+          "trained": true,
+          "train_end": "2024-06-30",
+          "oos_end": "2025-03-31",
+          "mode": "above",
+          "direction": 1,
+          "thr": 0.4492155802324414,
+          "train_pf": 1.602614359781702,
+          "oos_pf_net": 0.9614494394952994,
+          "oos_pf_gross": 0.9894468940034117,
+          "oos_n": 100,
+          "oos_ret_net": -0.009045623216256293
+        },
+        {
+          "fold": 2,
+          "trained": true,
+          "train_end": "2025-03-31",
+          "oos_end": "2026-06-30",
+          "mode": "below",
+          "direction": 1,
+          "thr": -1.43288605454289,
+          "train_pf": 1.2299211970192214,
+          "oos_pf_net": 0.6346315985907373,
+          "oos_pf_gross": 0.6521841922964239,
+          "oos_n": 74,
+          "oos_ret_net": -0.08376209107973168
+        }
+      ],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=1.1750307603965031 < 1.3"
+    },
+    {
+      "hypothesis": "H3",
+      "pair": "USDJPY",
+      "feature": "btc_weekend_return_pct",
+      "prior": "BTC weekend UP -> risk-on -> JPY-cross UP at Monday open->close",
+      "monday_only": true,
+      "train_days": 103,
+      "test_days": 58,
+      "train_chosen": {
+        "mode": "below",
+        "direction": 1,
+        "thr": -1.03405,
+        "train_pf": 6.5356,
+        "train_n": 21
+      },
+      "test": {
+        "pf_net": 0.6176,
+        "pf_gross": 0.6338,
+        "n_trades": 17,
+        "ret_sum_net": -0.02014
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": -1.24086,
+          "pf_net": 0.6176,
+          "n": 17
+        },
+        "plus20": {
+          "thr": -0.82724,
+          "pf_net": 0.5054,
+          "n": 18
+        }
+      },
+      "walk_forward_oos": [],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=0.6175556310093399 < 1.3"
+    },
+    {
+      "hypothesis": "H3",
+      "pair": "EURJPY",
+      "feature": "btc_weekend_return_pct",
+      "prior": "BTC weekend UP -> risk-on -> JPY-cross UP at Monday open->close",
+      "monday_only": true,
+      "train_days": 105,
+      "test_days": 64,
+      "train_chosen": {
+        "mode": "below",
+        "direction": 1,
+        "thr": -1.03205,
+        "train_pf": 4.2897,
+        "train_n": 21
+      },
+      "test": {
+        "pf_net": 1.2664,
+        "pf_gross": 1.2953,
+        "n_trades": 17,
+        "ret_sum_net": 0.01066
+      },
+      "sensitivity_pm20": {
+        "minus20": {
+          "thr": -1.23846,
+          "pf_net": 1.2664,
+          "n": 17
+        },
+        "plus20": {
+          "thr": -0.82564,
+          "pf_net": 1.0927,
+          "n": 18
+        }
+      },
+      "walk_forward_oos": [],
+      "PASS": false,
+      "verdict_reason": "TEST PF_net=1.2663961261799728 < 1.3"
+    }
+  ]
+}
